@@ -111,7 +111,7 @@ class WallTimeGuardCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
         ckpt_dir = self.output_dir / "checkpoints" / f"checkpoint-{state.global_step}"
 
-        # Save per-rank RNG state
+        # Lưu RNG state riêng cho từng rank.
         rank = int(os.environ.get("RANK", "0"))
         rng_state = {
             "cpu": torch.get_rng_state(),
@@ -158,9 +158,8 @@ def run_max_length_smoke(
     if projection_safety_factor < 1.0:
         raise E45Error("Smoke projection safety factor must be at least 1.0")
 
-    # E45TokenizedDataset intentionally exposes only model input fields.  Use
-    # the actual model input length rather than reaching into provenance fields
-    # that __getitem__ does not return.
+    # E45TokenizedDataset chỉ trả các field đưa vào model. Lấy độ dài từ input
+    # thực tế; __getitem__ không trả những field provenance.
     row_shapes = [
         (
             len(dataset[i]["input_ids"]),
@@ -169,9 +168,9 @@ def run_max_length_smoke(
         )
         for i in range(len(dataset))
     ]
-    # Attention memory is monotone in total sequence length; LM-head/loss
-    # memory is monotone in active answer+EOS labels.  Testing every Pareto
-    # frontier shape covers the actual worst cases without 5,636 smoke steps.
+    # Bộ nhớ attention tăng theo độ dài sequence; LM head/loss tăng theo số
+    # label answer+EOS có hiệu lực. Smoke từng điểm trên Pareto frontier đủ
+    # bao phủ các trường hợp nặng nhất mà không phải chạy 5.636 bước.
     risk_cases = [
         candidate
         for candidate in row_shapes
@@ -185,15 +184,14 @@ def run_max_length_smoke(
     risk_cases.sort()
     longest_tokens = max(shape[0] for shape in risk_cases)
 
-    # from_pretrained() returns an evaluation-mode model.  Gradient
-    # checkpointing only takes effect in training mode, so an eval-mode smoke
-    # drastically overstates activation memory and can OOM even when the real
-    # Trainer step fits.  The smoke must exercise the exact training path.
+    # from_pretrained() trả model ở eval mode. Gradient checkpointing chỉ có
+    # hiệu lực ở train mode; smoke ở eval mode sẽ tính bộ nhớ activation quá cao,
+    # thậm chí OOM dù Trainer step thật vẫn vừa. Smoke phải đi đúng đường train.
     model.train()
     device = next(model.parameters()).device if torch.cuda.is_available() else torch.device("cpu")
-    # AdamW states appear only on the first optimizer step.  Allocate them on
-    # this discarded stack before measuring the frontier; otherwise a smoke
-    # can pass with a memory margin that disappears at real step one.
+    # AdamW state chỉ được cấp phát ở optimizer step đầu tiên. Cấp phát trên
+    # stack dùng cho smoke trước khi đo frontier; nếu bỏ qua, bước train đầu
+    # tiên có thể hết bộ nhớ dù smoke báo đạt.
     smoke_optimizer = torch.optim.AdamW(
         (parameter for parameter in model.parameters() if parameter.requires_grad),
         lr=1e-4,
@@ -246,11 +244,10 @@ def run_max_length_smoke(
     measured_frontier = [case for case in smoke_cases if case["case_kind"] == "frontier"]
     peak_mb = max(case["peak_memory_mb"] for case in measured_frontier)
 
-    # Estimate total runtime from equal-sized strata of the actual 5,636-row
-    # shape distribution.  Multiplying the single slowest 8k frontier row by
-    # every microbatch is a memory upper bound, not a runtime estimate.  The
-    # deterministic proxy covers both quadratic attention work and active
-    # vocabulary-logit work; a 25% factor below remains the declared margin.
+    # Ước lượng thời gian từ các nhóm có cùng kích thước, lấy theo phân bố độ dài
+    # thật của 5.636 record. Nhân thời gian của record 8k chậm nhất cho mọi
+    # microbatch sẽ quá bi quan. Proxy cố định tính cả attention bậc hai lẫn
+    # logit vocabulary cho label đang hoạt động; cộng thêm biên 25% bên dưới.
     timing_sample_count = min(16, len(row_shapes))
     ranked_shapes = sorted(
         row_shapes,
@@ -340,7 +337,7 @@ def main() -> int:
     training_cfg = config.section("training")
     model_inv = config.section("model_inventory")
 
-    # 1. Enforce DDP World Size Contract
+    # 1. Bắt buộc DDP world size bằng hai.
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     if not args.allow_single_process_test and world_size != training_cfg["world_size"]:
         raise E45Error(
@@ -348,7 +345,7 @@ def main() -> int:
             f"Account A must be launched with 'torchrun --nproc_per_node=2 scripts/run_e45_train_kaggle.py'."
         )
 
-    # Effective global batch: 1 * 4 * 2 = 8
+    # Global batch hiệu dụng: 1 × 4 × 2 = 8.
     global_batch = training_cfg["per_device_train_batch"] * training_cfg["gradient_accumulation"] * world_size
     planned_steps = (training_cfg["records_count"] + global_batch - 1) // global_batch
     if planned_steps != training_cfg["expected_optimizer_steps"]:
@@ -357,10 +354,9 @@ def main() -> int:
             f"(records={training_cfg['records_count']}, global_batch={global_batch})"
         )
 
-    # Transformers 5.16 removed ``warmup_ratio`` from TrainingArguments and
-    # accepts the same ratio as a float in ``warmup_steps``.  Construct and
-    # validate the complete operator API before any model download or smoke so
-    # runtime incompatibilities fail in seconds rather than after GPU work.
+    # Transformers 5.16 bỏ ``warmup_ratio`` khỏi TrainingArguments và nhận
+    # cùng tỷ lệ dưới dạng float ở ``warmup_steps``. Kiểm tra API trước khi tải
+    # model hoặc chạy smoke để lỗi runtime xuất hiện sớm, chưa tốn GPU.
     training_args = TrainingArguments(
         output_dir=str(args.output_dir / "checkpoints"),
         num_train_epochs=training_cfg["epochs"],
@@ -388,12 +384,11 @@ def main() -> int:
             f"TrainingArguments warmup resolution {observed_warmup_steps} != expected {expected_warmup_steps}"
         )
 
-    # Check package identities only after the process topology has been
-    # rejected or accepted.  This keeps the DDP-contract test independent of
-    # whatever CPU-only runtime happens to execute the negative-path fixture.
+    # Kiểm tra package sau khi kiểm tra topology. Nhờ vậy test DDP không phụ
+    # thuộc vào phiên bản package của môi trường CPU chạy fixture lỗi.
     runtime_versions = verify_frozen_runtime(config)
 
-    # 2. Verify static preparation manifest
+    # 2. Kiểm tra manifest của bước chuẩn bị dữ liệu.
     prep_manifest = json.loads(args.manifest_json.read_text(encoding="utf-8"))
     if not prep_manifest.get("all_gates_pass"):
         raise E45Error("Training aborted: static preparation gate did not pass.")
@@ -420,7 +415,7 @@ def main() -> int:
         raise E45Error("Training aborted: tokenizer identity differs from the preparation manifest.")
     collator = E45CausalCollator(tokenizer)
 
-    # 3. Expected identity for checkpoints and resume
+    # 3. Chốt identity dùng cho checkpoint và resume.
     expected_identity = {
         "experiment_id": config.experiment_id,
         "config_sha256": config.sha256,
@@ -451,7 +446,7 @@ def main() -> int:
         validate_checkpoint_resume(args.resume_checkpoint_dir, expected_identity)
         LOG.info("Resume checkpoint validated fail-closed.")
 
-    # 4. Quantization config: NF4 double quant, float16 compute
+    # 4. Cấu hình quantization: NF4 double quant, tính toán float16.
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -459,8 +454,8 @@ def main() -> int:
         bnb_4bit_compute_dtype=torch.float16,
     ) if torch.cuda.is_available() else None
 
-    # 5. Build a fresh base+LoRA stack.  The smoke stack is explicitly discarded
-    # before this factory is used for the real optimizer run.
+    # 5. Tạo stack base+LoRA mới. Stack dùng cho smoke bị bỏ trước khi factory
+    # này tạo model cho optimizer run thật.
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     if torch.cuda.is_available():
         torch.cuda.set_device(local_rank)
@@ -476,19 +471,18 @@ def main() -> int:
         }
         if bnb_config is not None:
             model_kwargs["quantization_config"] = bnb_config
-            # This is rank-local placement for DDP, never model-parallel auto dispatch.
+            # Mỗi rank DDP tự đặt model lên GPU của mình; không dùng model-parallel auto dispatch.
             model_kwargs["device_map"] = {"": local_rank}
         base = AutoModelForCausalLM.from_pretrained(args.base_model_path, **model_kwargs)
-        # KV cache is an inference optimization and is incompatible with the
-        # gradient-checkpointed training path.  Disabling it changes no loss,
-        # labels, optimizer step, or quality-affecting contract field.
+        # KV cache dành cho inference và không hợp với train có gradient
+        # checkpointing. Tắt cache không đổi loss, label, optimizer step hay
+        # field nào trong hợp đồng chất lượng.
         base.config.use_cache = False
         if torch.cuda.is_available():
-            # PyTorch recommends the non-reentrant checkpoint implementation
-            # for DDP.  PEFT also avoids the legacy input-requires-grad hook in
-            # this mode, saving the small but decisive activation allocation at
-            # 8,192 tokens while preserving the same forward, loss, RNG state,
-            # optimizer recipe, and recomputed backward activations.
+            # PyTorch khuyên dùng checkpoint kiểu non-reentrant với DDP. PEFT
+            # cũng bỏ hook input-requires-grad cũ ở chế độ này, tiết kiệm phần
+            # activation nhỏ nhưng quyết định ở 8.192 token. Forward, loss,
+            # RNG state, optimizer và backward recompute vẫn giữ nguyên.
             base = prepare_model_for_kbit_training(
                 base,
                 use_gradient_checkpointing=True,
@@ -498,7 +492,7 @@ def main() -> int:
         model.train()
         return model
 
-    # 6. Apply fresh LoRA config
+    # 6. Áp dụng cấu hình LoRA mới.
     lora_config = LoraConfig(
         r=training_cfg["lora_rank"],
         lora_alpha=training_cfg["lora_alpha"],
@@ -507,8 +501,8 @@ def main() -> int:
         bias="none",
         task_type="CAUSAL_LM",
     )
-    # 7. Memory smoke on a separately loaded real longest row.  It records a
-    # conservative projection and cannot alter the model subsequently trained.
+    # 7. Smoke bộ nhớ trên record thật dài nhất bằng model load riêng. Kết quả
+    # chỉ dùng để ước lượng thận trọng, không làm đổi model sẽ train.
     if not args.skip_smoke and torch.cuda.is_available():
         smoke_model = fresh_lora_stack()
         smoke_inv = assert_model_inventory(smoke_model, config)
@@ -529,13 +523,12 @@ def main() -> int:
             smoke_result["projection_decision"] = "PASS_BELOW_30_HOURS"
             (args.output_dir / "smoke_result.json").write_text(json.dumps(smoke_result, indent=2), encoding="utf-8")
 
-    # 8. Fresh untouched stack for the actual DDP optimizer run.
+    # 8. Dùng stack mới, chưa qua smoke, cho DDP optimizer run thật.
     model = fresh_lora_stack()
     inv = assert_model_inventory(model, config)
     LOG.info("Model inventory assertion passed: %s", inv)
 
-    # 9. Training arguments were constructed before model work as an exact
-    # pinned-runtime API preflight.
+    # 9. Training arguments đã được kiểm tra với API runtime trước khi load model.
     guard_callback = WallTimeGuardCallback(
         max_seconds=args.max_runtime_hours * 3600.0,
         output_dir=args.output_dir,
@@ -555,7 +548,7 @@ def main() -> int:
     resume_from = str(args.resume_checkpoint_dir) if args.resume_checkpoint_dir else None
     train_result = trainer.train(resume_from_checkpoint=resume_from)
 
-    # If completed without wall-time abort, save final adapter
+    # Nếu không bị dừng vì giới hạn thời gian, lưu adapter cuối.
     if not guard_callback.aborted:
         final_adapter_dir = args.output_dir / "adapter-final"
         final_adapter_dir.mkdir(parents=True, exist_ok=True)

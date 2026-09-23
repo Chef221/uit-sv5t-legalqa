@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Build an explicitly degraded private submission from four complete first-pass checkpoints.
+"""Ghép bản nộp private từ bốn checkpoint đã đủ câu trả lời lượt đầu.
 
-This is a deadline fallback. It preserves every completed P01 second pass and
-uses the saved 1,024-token first pass only where the 1,536-token restart did
-not finish. It never reads private reference answers or runs a model.
+Đây là phương án sát deadline: giữ mọi lượt sinh lại P01 đã hoàn tất và dùng
+câu trả lời 1.024 token đã lưu ở nơi lượt sinh lại 1.536 token chưa xong.
+Script không đọc đáp án tham chiếu private và không chạy model.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from uit_dsc_fixed_rag.final_private_p01 import unified_clean  # noqa: E402
 
 
 class EmergencyMergeError(RuntimeError):
-    """A checkpoint or final submission invariant failed."""
+    """Checkpoint hoặc bản nộp cuối vi phạm điều kiện bắt buộc."""
 
 
 def _require(condition: bool, message: str) -> None:
@@ -47,7 +47,7 @@ def _json_bytes(value: Any) -> bytes:
 
 
 def _read_checkpoint(path: Path, expected_sha256: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Validate one archive, its adjacent sidecar, and every persisted worker state."""
+    """Kiểm tra archive, sidecar đi kèm và từng worker state đã lưu."""
     _require(path.is_file(), f"Checkpoint missing: {path.name}")
     digest = file_sha256(path)
     _require(digest == expected_sha256, f"Checkpoint bytes changed: {path.name}")
@@ -107,7 +107,7 @@ def _read_checkpoint(path: Path, expected_sha256: str) -> tuple[dict[str, Any], 
 
 
 def _collect_shard(shard_index: int, identity: dict[str, Any], states: list[dict[str, Any]], ids: list[str]) -> tuple[dict[str, str], dict[str, Any]]:
-    """Use all saved answers with second-pass completions preferred where present."""
+    """Lấy mọi câu đã lưu; ưu tiên kết quả sinh lại nếu đã hoàn tất."""
     expected_global = list(range(shard_index, len(ids), 4))
     expected_ids = [ids[index] for index in expected_global]
     _require(identity.get("shard_index") == shard_index and identity.get("shard_count") == 4, "Wrong shard checkpoint")
@@ -159,7 +159,7 @@ def _collect_shard(shard_index: int, identity: dict[str, Any], states: list[dict
 
 
 def merge(*, admission_path: Path, private_path: Path, candidate_path: Path, checkpoint_paths: list[Path], output_dir: Path) -> Path:
-    """Verify four checkpoint identities and write one emergency submission ZIP."""
+    """Đối chiếu bốn checkpoint rồi ghi submission ZIP sát deadline."""
     _require(len(checkpoint_paths) == 4, "Exactly four checkpoints are required")
     _require(not output_dir.exists(), "Emergency output directory already exists")
     admission = load_admission(admission_path)

@@ -237,8 +237,8 @@ def merge_and_evaluate_e45(*, account_a_bin: Path, account_b_bin: Path, sealed_r
         qids = _validate_contexts(contexts_a)
         raw_a, clean_a, runtime_a, _ = _validate_arm(root=a_root, label="Account A", contexts=contexts_a, qids=qids, expected_control=False)
         raw_b, clean_b, runtime_b, _ = _validate_arm(root=b_root, label="Account B", contexts=contexts_a, qids=qids, expected_control=True)
-        # The two submitted archives must identify the exact frozen local
-        # contract supplied to this merger; matching each other is insufficient.
+        # Hai archive phải cùng khớp contract local đã chốt mà merger nhận vào.
+        # Chỉ khớp với nhau thì chưa đủ.
         local_project_root = Path(__file__).resolve().parents[2]
         expected_config_sha = getattr(config, "sha", getattr(config, "sha256", ""))
         expected_code_sha = compute_source_identity(local_project_root)
@@ -309,14 +309,14 @@ def merge_and_evaluate_e45(*, account_a_bin: Path, account_b_bin: Path, sealed_r
         mean_meteor, mean_rouge = float(np.mean(meteor_delta)), float(np.mean(rouge_delta))
         passed = mean_meteor >= 0.010 and ci[0] > 0.0 and mean_rouge >= 0.0 and cand_length < ctrl_length
         prompt_lengths = [row["input_tokens"] for row in contexts_a]
-        # A length-only second pass replaces the first answer rather than
-        # continuing it.  Report final answer length, never their sum.
+        # Lượt hai sinh lại từ đầu khi lượt một chạm trần, không nối tiếp.
+        # Chỉ báo độ dài answer cuối; không cộng độ dài hai lượt.
         output_tokens_a = [row["second_pass_tokens"] or row["first_pass_tokens"] for row in raw_a]
         output_tokens_b = [row["second_pass_tokens"] or row["first_pass_tokens"] for row in raw_b]
         summary = {
             "verdict": "E45_PASSES_HELDOUT_GATE_PENDING_LEAD_REVIEW" if passed else "REJECT_E45",
-            # All validations above must complete without an exception before this
-            # value is emitted.  It is derived from those checks, never a literal.
+            # Chỉ xuất giá trị này sau khi mọi phép kiểm tra phía trên đạt.
+            # Giá trị được suy từ kết quả kiểm tra, không gán cứng.
             "zero_violations": bool(qids and len(raw_a) == len(clean_a) == len(raw_b) == len(clean_b) == 200),
             "metrics": {
                 "candidate_meteor_macro": float(np.mean(cand_meteor)), "control_meteor_macro": float(np.mean(ctrl_meteor)),

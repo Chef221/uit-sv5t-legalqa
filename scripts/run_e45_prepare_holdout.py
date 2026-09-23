@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dedicated CLI to reproduce holdout questions and prepare answer-blind holdout-contexts.jsonl."""
+"""Tái tạo câu hỏi holdout và chuẩn bị context mà không đọc đáp án."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def main() -> int:
     LOG.info("Starting holdout context preparation...")
     config = load_config(args.config_path)
 
-    # 1. Reproduce 200 holdout questions
+    # 1. Tái tạo 200 câu hỏi holdout.
     questions, manifest = select_group_safe_holdout(
         official_train_path=args.official_train,
         official_warmup_path=args.official_warmup,
@@ -63,7 +63,7 @@ def main() -> int:
     questions_file = args.output_dir / "questions.json"
     _atomic_json(questions_file, {q["question_id"]: {"question": q["question"]} for q in questions})
 
-    # 2. Retrieve and expand through the canonical P00/P01-compatible path.
+    # 2. Retrieval và mở rộng context theo luồng P00/P01 đã chốt.
     contexts_file, context_manifest = prepare_holdout_contexts(
         questions=questions,
         e00_dir=args.e00_dir,

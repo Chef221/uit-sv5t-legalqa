@@ -318,8 +318,8 @@ def _replica_process(
             "status": "failed", "error_type": type(exc).__name__, "error": str(exc),
             "traceback": traceback.format_exc(limit=10),
         })
-        # A failed state is intentionally not snapshotted: a later session must
-        # never turn an arbitrary exception into an approved fallback.
+        # Không snapshot state lỗi: session sau không được biến một lỗi bất kỳ
+        # thành fallback hợp lệ.
         _persist_state(path, state)
         raise
 
@@ -366,9 +366,9 @@ def _write_initial_states(
     contexts_by_index: dict[int, dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
     if states_dir.exists() and any(states_dir.iterdir()):
-        # A restored checkpoint may already contain a sharded state.  Its
-        # assignment depends on whether the replicas previously OOM'd, so it
-        # cannot be validated until after the replica states are read below.
+        # Checkpoint khôi phục có thể đã có state của sharded worker. Phân công
+        # của nó phụ thuộc vào việc replica trước đó có OOM hay không, nên phải
+        # đọc state của replica bên dưới rồi mới kiểm tra được.
         observed = {path.name for path in states_dir.glob("*.json")}
         allowed = set(_REPLICA_STATE_NAMES) | {_SHARDED_STATE_NAME}
         if not set(_REPLICA_STATE_NAMES).issubset(observed) or observed - allowed:
@@ -598,8 +598,8 @@ def execute_resumable_private_p01_generation(
     checkpoint_spec = {"archive_path": str(checkpoint_archive), "identity": checkpoint_identity}
     spawn = mp.get_context("spawn")
     checkpoint_lock = spawn.Lock()
-    # Persist a valid segment before either model is loaded.  This makes a
-    # timeout during model download or CUDA initialization resumable too.
+    # Lưu segment hợp lệ trước khi load model. Nhờ vậy timeout lúc tải model
+    # hoặc khởi tạo CUDA vẫn có điểm để resume.
     _snapshot(
         checkpoint_spec=checkpoint_spec, checkpoint_lock=checkpoint_lock,
         states_dir=states_dir, reason="session-initialized",
@@ -639,9 +639,8 @@ def execute_resumable_private_p01_generation(
         states_dir=states_dir, identity=identity, assignments=assignments,
         contexts_by_index=contexts_by_index,
     )
-    # A state can be stopped in the second pass after it has already completed
-    # all of its first-pass assignments.  That is a safe resume point, not a
-    # reason to abandon a later session before it restarts those length rows.
+    # Worker có thể dừng ở lượt hai sau khi xong toàn bộ lượt đầu. Đây là điểm
+    # resume an toàn; session sau vẫn phải sinh lại các câu chạm trần còn thiếu.
     first_pass_stopped = [
         state for state in states.values()
         if state["status"] == "stopped" and set(state["completed"]) != set(state["assigned_indices"])
@@ -717,8 +716,8 @@ def execute_resumable_private_p01_generation(
     provisional = _first_pass_results(states)
     if set(provisional) != set(range(len(contexts))):
         raise PrivateGenerationResumeError("First-pass workers did not produce exact private shard coverage")
-    # First declare every length finish under its original worker state, then
-    # restart only unfinished second-pass rows from the original prompt IDs.
+    # Ghi nhận câu chạm trần trong state của worker gốc. Sau đó chỉ sinh lại
+    # các câu lượt hai còn thiếu, bắt đầu từ prompt IDs gốc.
     second_due: list[int] = []
     for index, (owner, result) in sorted(provisional.items()):
         state = states[owner]
@@ -753,9 +752,8 @@ def execute_resumable_private_p01_generation(
                 owner_state = states[owner]
                 owner_path = states_dir / (_SHARDED_STATE_NAME if owner == "sharded-worker" else f"{owner}-state.json")
                 if _deadline_reached(deadline_epoch):
-                    # Preserve a replica OOM classification: it determines
-                    # that its still-missing first-pass rows remain assigned to
-                    # the approved sharded fallback on the next session.
+                    # Giữ phân loại OOM của replica để session sau tiếp tục
+                    # giao các câu lượt đầu còn thiếu cho sharded fallback.
                     if owner_state["status"] != "oom":
                         owner_state["status"] = "stopped"
                     owner_state["stop_reason"] = "wall_clock_safety_margin"

@@ -1,23 +1,25 @@
-# Reproduction guide
+# Tái lập E45 từ source
 
-This is a **source-only** release. Authorized users must obtain the organizer's task data and scoring program through official channels. Download the pinned base and embedding models at the immutable revisions in `configs/e45-inference-aligned-parent-lora-v1.json`; obtain or rebuild E00/E02 artifacts under the hashes in `artifact-hashes.md`. Never place inputs under Git tracking.
+Repo này **chỉ có source**. Muốn chạy lại đầy đủ cần lấy dữ liệu Task 2 từ kênh chính thức của BTC, tải model đúng revision trong `configs/e45-inference-aligned-parent-lora-v1.json`, rồi cung cấp E00/E02 index và adapter theo [hash đã ghi](artifact-hashes.md). Không đưa các file đó vào Git.
 
-The checked-in notebooks are the historical launch notebooks and require their checksum-pinned system archives as external inputs. `scripts/build_e45_private_shards.py` accepts the external R3 archive path through `E45_R3_SYSTEM_BIN` and writes generated artifacts outside Git tracking. This public source tree has only portability edits to local path defaults and imports; it is **not byte-identical** to the archived Kaggle system binaries. Use the archived hashes when identifying the original run.
+## Đường chạy của bản nộp
 
-The submitted path used:
+1. `scripts/run_e45_static_prepare.py` kiểm tra config đã chốt và materialize 5.636 record train từ dữ liệu chính thức.
+2. `scripts/run_e45_train_kaggle.py` được gọi từ `notebooks/E45-ACCOUNT-A-RESUME-AND-DIRECT-PRIVATE-PACKAGE-T4X2.ipynb`. Account A dùng hai T4 với DDP world size bằng hai, hoàn tất candidate sau 705 optimizer step.
+3. Bốn notebook `notebooks/E45-PRIVATE-RESUMABLE-SHARD-*-OF-4-T4X2.ipynb` chuẩn bị context private và sinh answer theo shard. Mỗi notebook kiểm tra hash của system archive, release token và các input trước khi load model.
+4. `scripts/merge_e45_emergency_checkpoints.py` ghép **bản nộp thực tế sát deadline**. Script giữ các lượt sinh lại đã xong và dùng answer lượt đầu cho 143 lượt sinh lại còn dang dở. Merger cho trường hợp mọi lượt sinh lại đều xong là một chính sách khác; không dùng nó để nhận điểm private đã công bố.
 
-1. `scripts/run_e45_static_prepare.py` to check the frozen config and materialize the 5,636 answer-supervised training rows.
-2. `scripts/run_e45_train_kaggle.py` through `notebooks/E45-ACCOUNT-A-RESUME-AND-DIRECT-PRIVATE-PACKAGE-T4X2.ipynb`, with two T4 GPUs and DDP world size two, to finish the 705-step candidate archive.
-3. Four `notebooks/E45-PRIVATE-RESUMABLE-SHARD-*-OF-4-T4X2.ipynb` instances to prepare private contexts and generate per-shard checkpoints. Their archive and admission hashes must match before model loading.
-4. `scripts/merge_e45_emergency_checkpoints.py` to assemble the **as-submitted deadline fallback**. The standard all-restarts-complete merger is a different policy and cannot be used to claim the published private score.
+Notebook trong repo là notebook launch đã dùng khi thi. Chúng cần các system archive có hash đúng, được giữ ngoài Git. `scripts/build_e45_private_shards.py` nhận đường dẫn R3 archive qua biến môi trường `E45_R3_SYSTEM_BIN` và ghi output vào `artifacts/` (Git bỏ qua thư mục này). Bản source public có vài sửa đổi **chỉ để bỏ đường dẫn máy cá nhân và dùng layout repo mới**; vì vậy nó không byte-identical với system archive đã chạy trên Kaggle. Khi truy nguồn lần chạy thật, hãy dùng hash của archive gốc.
 
-The exact Kaggle Python package versions are recorded in the config's `runtime` section. GPU/kernel driver behavior, downloaded model snapshots and external artifacts still have to be verified on the target runtime. Do not interpret passing CPU tests as proof of a complete GPU rerun.
+Runtime Python package đã pin trong mục `runtime` của config. Khi chạy trên GPU khác, vẫn phải kiểm tra driver, CUDA, model snapshot và artifact thực tế. Test CPU không thay cho một lần chạy GPU đầy đủ.
 
-For static checks, create a Python environment with `pytest` installed and run:
+## Kiểm tra nhanh, không cần dữ liệu private
+
+Tạo Python environment có `pytest`, rồi chạy:
 
 ```bash
 python -m compileall -q src scripts
 python -m pytest -q tests/test_e45_static_prepare_jsonl.py tests/test_private_checkpoint_resume.py
 ```
 
-Test modules that need training frameworks, organizer data or CUDA are intentionally outside that small default command. The data boundary is strict: input resolution is by immutable SHA-256, duplicate matches are rejected, and any private reference field must fail before generation or finalization.
+Các test cần framework train, model lớn hoặc dữ liệu BTC không nằm trong lệnh nhanh này. Resolver kiểm tra input bằng SHA-256; thiếu file hoặc gặp nhiều bản khớp đều dừng. Private inference và bước ghép cuối không nhận reference answer làm input.

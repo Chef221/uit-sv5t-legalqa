@@ -1,7 +1,7 @@
-# Attribution and rights
+# Nguồn code, model và dữ liệu
 
-This repository documents a team entry to UIT Data Science Challenge 2026 Task 2. The GitHub account owner is `Chef221`; individual team member names and contribution roles should be added only after confirmation from the team.
+Repo ghi lại bài dự thi Task 2 của một đội tại UIT Data Science Challenge 2026. Repo nằm dưới tài khoản `Chef221`. Tên và vai trò của từng thành viên sẽ được bổ sung sau khi đội xác nhận; không tự gán công việc cho một cá nhân.
 
-The official task materials, legal corpus and scoring program originate from the competition organizers. The generator is [`AITeamVN/Vi-Qwen2-3B-RAG`](https://huggingface.co/AITeamVN/Vi-Qwen2-3B-RAG), pinned to revision `eaf427c24d86066a2b35828c499b7db3af321227`. The dense encoder is [`AITeamVN/Vietnamese_Embedding`](https://huggingface.co/AITeamVN/Vietnamese_Embedding), pinned to revision `dea33aa1ab339f38d66ae0a40e6c40e0a9249568`. Upstream model licenses and the team's rights in derived weights must be confirmed before any weight release.
+Dữ liệu, corpus pháp luật và scoring program do Ban tổ chức cung cấp. Generator là [`AITeamVN/Vi-Qwen2-3B-RAG`](https://huggingface.co/AITeamVN/Vi-Qwen2-3B-RAG), revision `eaf427c24d86066a2b35828c499b7db3af321227`. Dense encoder là [`AITeamVN/Vietnamese_Embedding`](https://huggingface.co/AITeamVN/Vietnamese_Embedding), revision `dea33aa1ab339f38d66ae0a40e6c40e0a9249568`.
 
-The historical source snapshot includes code written and repaired across multiple development iterations. Public source licensing is deferred until contributor ownership is confirmed; no official dataset or model-weight license is granted by this repository.
+Quyền public source của đội, quyền phát hành adapter weights và quyền phân phối dữ liệu BTC là những việc khác nhau. Repo chỉ public source sau khi loại dữ liệu và artifact; chưa phát hành weights hoặc dữ liệu. Repo chưa gắn giấy phép open-source cho code vì quyền của các contributor và điều kiện license từ upstream cần được xác nhận riêng.

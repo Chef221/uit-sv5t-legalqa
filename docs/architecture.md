@@ -1,15 +1,25 @@
-# Submitted system architecture
+# Kiến trúc của bản nộp E45
 
-## Offline boundary
+[Sơ đồ tổng quan](architecture-overview.svg) cho thấy luồng từ câu hỏi đến `submission.json`. Trang này đi sâu vào ranh giới giữa chuẩn bị dữ liệu, train và inference.
 
-Official BTC passages are normalized and chunked into E00 documents/chunks and a SQLite BM25 index. A pinned `AITeamVN/Vietnamese_Embedding` encoder produces the E02 dense index. E08A seed retrieval, E21 parent expansion and E44 prompt construction materialize answer-independent evidence for 5,636 official training examples. The E45 rank-8 LoRA trains only on the official answer target, with assistant-only loss and an 8,192-token sequence envelope. Indexes, training rows and adapter weights are external artifacts and are not part of this repository.
+## Chuẩn bị offline
 
-## Inference boundary
+Corpus do BTC cung cấp được chuẩn hóa và chia thành document/chunk E00. Từ đó hệ thống tạo SQLite BM25 index. Model `AITeamVN/Vietnamese_Embedding` ở revision đã chốt tạo dense index E02. Cả hai index đều được kiểm tra bằng SHA-256 khi dùng lại.
 
-For each question the fixed retriever takes 40 BM25 and 40 dense candidates, combines ranks using equal-weight reciprocal rank fusion (`k=60`), retains 20 fused candidates and passes the first 12 seeds to parent-context expansion. The selected evidence is rendered using the frozen P00/P01 prompt. The generator is the pinned Vi-Qwen2-3B-RAG base plus the E45 adapter, using greedy decoding. The normal first pass allows 1,024 new tokens; length-only endings qualify for a fresh generation from the original input IDs with a 1,536-token cap. E43/E44 cleanup produces the answer string.
+E08A lưu thứ tự seed retrieval cho 5.636 câu train. E21 mở rộng mỗi seed về `parent context`, có giới hạn độ dài và giữ span trỏ ngược về văn bản nguồn. Prompt dùng cách render đã chốt ở E44. Bước này không đọc câu trả lời để quyết định evidence. Câu trả lời chính thức chỉ đi vào target của E45 LoRA: `assistant-only loss`, một EOS sau answer và giới hạn 8.192 token cho toàn bộ sequence.
 
-Short prompts are split between two isolated T4 workers; long prompts use a two-T4 sharded worker. The four private question shards can run on separate Kaggle accounts. Per-row checkpoints and SHA-256 bindings protect the output against a truncated session or accidental arm mix-up. The actual deadline assembly is documented in [submitted-run.md](submitted-run.md).
+Repo chỉ chứa code và config. Index, record train đã materialize và adapter weights nằm ngoài Git.
 
-## Trust and provenance boundaries
+## Inference
 
-The code resolves artifacts by immutable hash and rejects missing or multiple matches. The raw/clean record and worker states bind generation to prompt, context, model, adapter, runtime and decoding identities. Reference answers are not inputs to private inference. Local development evaluation was kept separate from private generation. The final emergency merger consumed saved checkpoint outputs and did not read private reference answers.
+Với mỗi câu hỏi, BM25 và dense retrieval lấy 40 candidate mỗi nhánh. RRF trộn hai danh sách với trọng số 0,5 / 0,5 và `k=60`; hệ thống giữ top 20 sau fusion và đưa 12 seed đầu vào E21. Context sau mở rộng được render thành prompt P00/P01 cho Vi-Qwen2-3B-RAG cùng adapter E45.
+
+Generation chạy greedy. Lượt đầu tối đa 1.024 token mới. Chỉ trường hợp dừng vì chạm giới hạn độ dài mới được sinh lại, bắt đầu từ **input IDs gốc**, với giới hạn 1.536 token. E43/E44 xử lý lặp ở phần đuôi sau khi model sinh xong.
+
+Prompt ngắn được chia cho hai worker độc lập, mỗi worker dùng một T4. Prompt dài dùng worker chia model trên hai T4. Bốn shard private có thể chạy trên các tài khoản Kaggle khác nhau. Mỗi câu hoàn thành được ghi vào checkpoint, kèm các hash ràng buộc input, model, adapter, runtime và output.
+
+## Ranh giới tin cậy
+
+Artifact được tìm theo SHA-256, không chọn theo tên file hay đường dẫn upload. Thiếu file hoặc có nhiều bản cùng hash đều bị từ chối. Worker state và record đầu ra ghi đủ identity để phát hiện trộn shard hoặc trộn adapter. Private inference không nhận đáp án tham chiếu làm input. Việc chấm local được tách khỏi luồng sinh private.
+
+[Báo cáo bản nộp](submitted-run.md) ghi rõ ngoại lệ 143 câu ở deadline. Ngoại lệ này là thuộc tính của **lần nộp cuối**, không phải chính sách inference lý tưởng đã định trước.

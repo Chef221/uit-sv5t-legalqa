@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1590" role="img" aria-labelledby="title desc">
+  <title id="title">Kiến trúc E45</title>
+  <desc id="desc">Sơ đồ dọc từ corpus và câu hỏi qua BM25, dense retrieval, RRF, parent context, prompt, Vi-Qwen LoRA, sinh câu trả lời và ghép submission.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#15223b"/>
+    </linearGradient>
+    <linearGradient id="model" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#155e75"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="6" refY="6" orient="auto">
+      <path d="M2 2 L10 6 L2 10 Z" fill="#8ca4c8"/>
+    </marker>
+    <style>
+      .base{font-family:Inter,Arial,sans-serif;fill:#eaf2ff}
+      .title{font-size:42px;font-weight:700}
+      .sub{font-size:20px;fill:#b8c9e5}
+      .head{font-size:25px;font-weight:700}
+      .body{font-size:19px;fill:#d0ddf2}
+      .tag{font-size:15px;font-weight:700;letter-spacing:1.4px;fill:#8ce5da}
+      .line{stroke:#8ca4c8;stroke-width:4;fill:none;marker-end:url(#arrow)}
+      .card{fill:#1c2b45;stroke:#395071;stroke-width:2}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="1590" rx="28" fill="url(#bg)"/>
+  <text class="base title" x="80" y="80">E45: từ câu hỏi đến bản nộp</text>
+  <text class="base sub" x="80" y="116">Retrieval cố định · parent context · Vi-Qwen LoRA · bốn shard private</text>
+
+  <rect class="card" x="80" y="160" width="450" height="136" rx="18"/>
+  <text class="base tag" x="110" y="196">DỮ LIỆU OFFLINE</text>
+  <text class="base head" x="110" y="233">Corpus chính thức của BTC</text>
+  <text class="base body" x="110" y="267">E00 BM25 · E02 dense index</text>
+
+  <rect class="card" x="570" y="160" width="450" height="136" rx="18"/>
+  <text class="base tag" x="600" y="196">INPUT INFERENCE</text>
+  <text class="base head" x="600" y="233">Câu hỏi pháp luật</text>
+  <text class="base body" x="600" y="267">Không có đáp án tham chiếu</text>
+
+  <path class="line" d="M305 296 L305 336 L430 336 L430 365"/>
+  <path class="line" d="M795 296 L795 336 L670 336 L670 365"/>
+  <rect class="card" x="130" y="370" width="840" height="142" rx="20"/>
+  <text class="base tag" x="166" y="408">01 · RETRIEVAL</text>
+  <text class="base head" x="166" y="447">BM25 top 40 + dense top 40</text>
+  <text class="base body" x="166" y="482">RRF trọng số 0,5 / 0,5 · k = 60 · lấy 12 seed</text>
+
+  <path class="line" d="M550 512 L550 554"/>
+  <rect class="card" x="130" y="560" width="840" height="142" rx="20"/>
+  <text class="base tag" x="166" y="598">02 · DỰNG CONTEXT</text>
+  <text class="base head" x="166" y="637">E21 mở rộng seed về parent context</text>
+  <text class="base body" x="166" y="672">Giữ thứ tự seed, span nguồn và giới hạn token</text>
+
+  <path class="line" d="M550 702 L550 744"/>
+  <rect class="card" x="130" y="750" width="840" height="142" rx="20"/>
+  <text class="base tag" x="166" y="788">03 · PROMPT</text>
+  <text class="base head" x="166" y="827">P00/P01: câu hỏi + evidence đã chọn</text>
+  <text class="base body" x="166" y="862">Cùng cách dựng prompt cho train và inference</text>
+
+  <path class="line" d="M550 892 L550 934"/>
+  <rect x="130" y="940" width="840" height="158" rx="20" fill="url(#model)" stroke="#6eaff5" stroke-width="2"/>
+  <text class="base tag" x="166" y="980" style="fill:#c4fff2">04 · GENERATOR</text>
+  <text class="base head" x="166" y="1022" style="font-size:29px">Vi-Qwen2-3B-RAG + E45 LoRA rank 8</text>
+  <text class="base body" x="166" y="1062" style="fill:#edf8ff">Train 5.636 record chính thức · 705 optimizer step</text>
+
+  <path class="line" d="M550 1098 L550 1140"/>
+  <rect class="card" x="130" y="1146" width="840" height="142" rx="20"/>
+  <text class="base tag" x="166" y="1184">05 · SINH CÂU TRẢ LỜI</text>
+  <text class="base head" x="166" y="1223">Greedy 1.024 token; sinh lại khi chạm trần</text>
+  <text class="base body" x="166" y="1258">Lượt hai tối đa 1.536 token · E43/E44 cleanup</text>
+
+  <path class="line" d="M550 1288 L550 1330"/>
+  <rect class="card" x="130" y="1336" width="840" height="142" rx="20"/>
+  <text class="base tag" x="166" y="1374">06 · ĐÓNG GÓI</text>
+  <text class="base head" x="166" y="1413">Ghép bốn shard → submission.json</text>
+  <text class="base body" x="166" y="1448">1.918 câu; 143 câu dùng checkpoint lượt đầu</text>
+
+  <text class="base sub" x="80" y="1542">Source-only: không đưa dữ liệu BTC, đáp án private, index hoặc weights lên GitHub.</text>
+</svg>

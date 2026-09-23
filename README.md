@@ -1,63 +1,57 @@
-# E45 — Vietnamese Legal Question Answering (UIT DSC 2026 Task 2)
+# E45 — Hệ thống hỏi đáp pháp luật tiếng Việt tại UIT DSC 2026
 
-The team's submitted system retrieves passages from the competition's official legal corpus, expands selected evidence to parent context, and generates Vietnamese answers with a rank-8 LoRA adapter on Vi-Qwen2-3B-RAG. This repository records the **system actually submitted**, its engineering decisions, and a source-only reproduction path. Competition data, private questions and answers, model weights, indexes, checkpoints and submission files are deliberately absent.
+Đây là source của hệ thống đội đã nộp cho Task 2, UIT Data Science Challenge 2026. E45 tìm căn cứ trong kho văn bản do Ban tổ chức cung cấp, mở rộng các đoạn tìm được về ngữ cảnh của Điều luật, rồi dùng Vi-Qwen2-3B-RAG với LoRA rank 8 để viết câu trả lời.
 
-| Private-test metric | Reported score |
+<p align="center">
+  <img src="docs/architecture-overview.svg" alt="Sơ đồ dọc của hệ thống E45, từ dữ liệu chính thức và câu hỏi đến retrieval, parent context, Vi-Qwen LoRA và submission" width="100%">
+</p>
+
+## Kết quả private test
+
+| Metric | Điểm |
 |---|---:|
-| METEOR (primary) | **0.597327402** |
-| ROUGE-L | **0.586192885** |
+| **METEOR** — metric chính | **0.597327402** |
+| **ROUGE-L** | **0.586192885** |
 
-These values are from the team's Codabench `scores.json`. The submitted ZIP SHA-256 is `d697c48e4ce48410ad4695291c98891f9f872a88cf0f6d1dfc576d8dbf86496b`; its 1,918 answers passed local schema and coverage checks. A durable Codabench result export tying the score to that submission remains to be added. We make no rank or award claim.
+Đây là hai giá trị trong `scores.json` đội nhận từ Codabench. File `submission.zip` đã nộp có SHA-256 `d697c48e4ce48410ad4695291c98891f9f872a88cf0f6d1dfc576d8dbf86496b`. Bản ZIP chứa 1.918 câu trả lời và đã qua bước kiểm tra format, số lượng ID ở local. Repo chưa có bản export Codabench lưu lâu dài để đối chiếu độc lập điểm với lần nộp này. Chúng tôi không công bố thứ hạng hoặc giải thưởng khi chưa có bằng chứng tương ứng.
 
-```mermaid
-flowchart LR
-  A[Official BTC corpus] --> B[E00 chunks + BM25]
-  A --> C[E02 dense index]
-  Q[Question] --> D[BM25 top 40 + dense top 40]
-  B --> D
-  C --> D
-  D --> E[Equal-weight RRF, k=60; top 12 seeds]
-  E --> F[E21 parent-context expansion]
-  F --> G[P00/P01 prompt; 8,192-token envelope]
-  G --> H[Vi-Qwen2-3B-RAG + E45 rank-8 LoRA]
-  H --> I[Greedy generation + length-only restart]
-  I --> J[E43/E44 cleanup and four-shard assembly]
-  J --> K[submission.json]
-```
+## Vì sao chọn E45?
 
-The E45 adapter was trained on **5,636 official training records** for **705 optimizer steps**. It aligns training inputs with the parent-context evidence and prompt used at inference. The frozen configuration inventories **3,668,660,224** parameters across the model stack, below the competition's strict 4-billion-parameter ceiling. See [architecture](docs/architecture.md), [experiment decisions](docs/experiment-ledger.md), and [competition rules](docs/competition-rules.md).
+Ở E45, dữ liệu fine-tune dùng cùng cách lấy `parent context` và cùng kiểu prompt với lúc inference. Mục tiêu là giảm độ lệch giữa ngữ cảnh model thấy khi học và ngữ cảnh nó gặp khi trả lời câu hỏi. Adapter được train trên **5.636 record chính thức**, trong **705 optimizer step**, với `assistant-only loss` và giới hạn **8.192 token** cho cả prompt lẫn câu trả lời. Cấu hình đã đóng băng ghi nhận tổng **3.668.660.224 tham số** cho các model trong hệ thống, dưới ngưỡng *nhỏ hơn 4 tỷ* của cuộc thi.
 
-## What was submitted
+[Kiến trúc chi tiết](docs/architecture.md) mô tả offline index và luồng inference. [Nhật ký thí nghiệm](docs/experiment-ledger.md) giải thích các quyết định từ E00/E02 đến E45, cùng giới hạn khi so sánh kết quả giữa các lần chạy.
 
-Four Kaggle shards generated 1,918 private-test answers. Under the submission deadline, 143 rows whose length-only 1,536-token restart was unfinished used their saved 1,024-token first-pass answer. This is a documented deviation from the intended complete restart policy; the score above belongs to **this exact fallback run**. See [submitted run](docs/submitted-run.md) and [limitations](docs/limitations.md).
+## Bản nộp thực tế có một ngoại lệ
 
-## Repository map
+Bốn shard chạy private test trên Kaggle và tạo đủ 1.918 câu trả lời. Theo chính sách inference đã định, câu bị cắt vì chạm giới hạn 1.024 token sẽ được sinh lại từ input gốc với giới hạn 1.536 token. Khi đến deadline, **143 lượt sinh lại chưa xong**. Bản nộp dùng câu trả lời lượt đầu đã lưu trong checkpoint cho 143 trường hợp đó; các lượt sinh lại đã hoàn tất vẫn được giữ nguyên. Điểm private ở trên thuộc **đúng bản nộp này**, không phải một lần chạy mà mọi lượt sinh lại đều hoàn tất. Xem [báo cáo bản nộp](docs/submitted-run.md) và [giới hạn của kết quả](docs/limitations.md).
 
-| Path | Contents |
+## Repo có gì?
+
+| Thư mục | Nội dung |
 |---|---|
-| `src/uit_dsc_fixed_rag/` | Frozen E00/E02 retrieval, E21/E44 context, E45 preparation/training/generation, and experiment implementations |
-| `src/e45_private_*.py` | Four-shard scheduling, checkpointing and generation |
-| `scripts/` | Training, generation, admission and emergency merge entry points |
-| `notebooks/` | Final Account A packaging notebook and four resumable private shard notebooks |
-| `configs/` | Frozen E45 configuration |
-| `tests/` | CPU/static integrity and behavior tests from the implementation |
-| `docs/` | Architecture, rules, decisions, provenance and reproduction guide |
+| `src/uit_dsc_fixed_rag/` | Code retrieval, dựng context, chuẩn bị dữ liệu train, train và inference; có cả các module thí nghiệm trước E45 |
+| `src/e45_private_*.py` | Chia shard, chạy hai T4 và lưu checkpoint theo từng câu |
+| `scripts/` | Các entry point dùng để chuẩn bị, train, chạy private và ghép bản nộp sát deadline |
+| `notebooks/` | Notebook Account A cuối cùng và bốn notebook private có checkpoint |
+| `configs/` | Cấu hình E45 đã đóng băng |
+| `tests/` | Test CPU/static cho format, hash, checkpoint và một số hợp đồng hành vi |
+| `docs/` | Thiết kế, nội quy cuộc thi, lịch sử quyết định, hash artifact và cách tái lập |
 
-Historical experiment modules are included for research traceability; they are not all components of the submitted runtime. This repository is a curated code snapshot, not the multi-milestone development monorepo.
+Các module thí nghiệm cũ giúp lần theo quá trình chọn E45; chúng không đồng nghĩa với việc tất cả đều nằm trong runtime của bản nộp. Đây là repo đã tuyển chọn từ quá trình phát triển, không phải bản copy toàn bộ workspace.
 
-## Reproduce with authorized inputs
+## Chạy kiểm tra source
 
-Use the official BTC data obtained through the competition, the exact model revisions in the config, and the externally held E00/E02 indexes and E45 adapter identified in [artifact hashes](docs/artifact-hashes.md). Never commit these assets. The [reproducibility guide](docs/reproducibility.md) identifies the actual notebook and scripts, runtime requirements, validation boundaries and the deadline fallback. CPU/static checks can be run without private data:
+Không cần dữ liệu private để chạy các test nhỏ:
 
 ```bash
 python -m compileall -q src scripts
 python -m pytest -q tests/test_e45_static_prepare_jsonl.py tests/test_private_checkpoint_resume.py
 ```
 
-The full Kaggle run requires GPUs, official inputs and the missing weight/index artifacts. The private leaderboard score cannot be reproduced from this source-only repository alone.
+Muốn chạy lại pipeline đầy đủ cần dữ liệu chính thức, model đúng revision, E00/E02 index, adapter E45 và GPU. Các file đó **không có trong Git**. [Hướng dẫn tái lập](docs/reproducibility.md) ghi rõ notebook nào đã dùng, runtime cần khớp và các bước kiểm tra artifact. [Danh sách SHA-256](docs/artifact-hashes.md) giúp nhận diện đúng đầu vào mà không phát tán dữ liệu.
 
-## Competition and publication boundaries
+## Ranh giới công bố
 
-The method uses official competition data only, no synthetic QA or external legal corpus, no model API, and a total model parameter count below 4B. METEOR is the primary official metric; ROUGE-L is secondary. The actual Codabench submission format is a ZIP containing only UTF-8 `submission.json`, an object mapping each question ID to `{"answer": "..."}`. The [rules note](docs/competition-rules.md) distinguishes the team's recorded competition contract from organizer source documents. No official data or generated private answers are published here.
+Repo không chứa dữ liệu train/public/private của BTC, câu trả lời private, `submission.zip`, index, checkpoint hay trọng số model. Hệ thống chỉ dùng dữ liệu chính thức; không dùng synthetic QA, corpus pháp luật ngoài cuộc thi hoặc model API. Format Codabench đã dùng là ZIP chỉ chứa một file `submission.json` UTF-8, với mỗi ID ánh xạ tới `{"answer": "..."}`. [Nội quy và hợp đồng chấm điểm](docs/competition-rules.md) ghi lại nguồn đã kiểm tra và cách E45 tuân thủ.
 
-Model and team credits appear in [attribution](docs/attribution.md). The source code is published for inspection; redistribution rights for the adapter and official data are separate questions. No open-source license is claimed until team ownership and upstream obligations are confirmed.
+[Ghi nhận nguồn và quyền sử dụng](docs/attribution.md) phân biệt source của đội với model, dữ liệu và scorer từ bên ngoài. Repo chưa gắn giấy phép open-source cho code khi quyền của các thành viên và nghĩa vụ với upstream chưa được xác nhận.

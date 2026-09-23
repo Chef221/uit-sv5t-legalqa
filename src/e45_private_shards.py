@@ -277,9 +277,8 @@ def prepare_private_shard_contexts(
         config=config,
         device="cuda:0",
     )
-    # Iterate physical JSONL records. ``str.splitlines()`` also splits valid
-    # JSON strings at Unicode separators such as U+2028, which occurs in the
-    # official corpus and can make an otherwise valid record look truncated.
+    # Đọc theo dòng vật lý. ``str.splitlines()`` còn tách tại U+2028 nằm trong
+    # chuỗi JSON hợp lệ của corpus, khiến record trông như bị cắt cụt.
     with contexts_path.open("r", encoding="utf-8", newline="") as stream:
         contexts = [json.loads(line) for line in stream if line.strip()]
     if [row.get("question_id") for row in contexts] != shard_identity["global_question_ids"]:
@@ -336,9 +335,8 @@ def run_private_shard(
         e00_dir=e00_dir, dense_dir=dense_dir, tokenizer_path=tokenizer_path,
         output_dir=output_dir / "contexts", config_path=config_path,
     )
-    # Iterate physical JSONL records. ``str.splitlines()`` also splits valid
-    # JSON strings at Unicode separators such as U+2028, which occurs in the
-    # official corpus and can make an otherwise valid record look truncated.
+    # Đọc theo dòng vật lý. ``str.splitlines()`` còn tách tại U+2028 nằm trong
+    # chuỗi JSON hợp lệ của corpus, khiến record trông như bị cắt cụt.
     with contexts_path.open("r", encoding="utf-8", newline="") as stream:
         contexts = [json.loads(line) for line in stream if line.strip()]
     worker = E45GeneratorWorker(
@@ -466,8 +464,8 @@ def package_shard(*, output_dir: Path, archive_path: Path) -> tuple[Path, str]:
     if not all(path.is_file() for path in required):
         raise PrivateShardError("Cannot package incomplete private shard")
     archive_path.parent.mkdir(parents=True, exist_ok=True)
-    # A fresh external staging directory makes the final packaging cell safe
-    # to rerun after a browser reconnect or notebook-cell retry.
+    # Staging directory mới nằm ngoài output chính giúp cell đóng gói chạy lại
+    # an toàn sau khi trình duyệt mất kết nối hoặc phải retry cell.
     with tempfile.TemporaryDirectory(prefix="e45_private_bundle_", dir=archive_path.parent) as temporary_root:
         stage = Path(temporary_root) / "bundle"
         stage.mkdir()

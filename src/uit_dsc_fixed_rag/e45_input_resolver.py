@@ -52,7 +52,7 @@ class Sha256Index:
                 continue
             for entry in root_path.rglob("*"):
                 if entry.is_file():
-                    # Skip symlinks and common temporary junk
+                    # Bỏ qua symlink và file tạm thường gặp.
                     if entry.is_symlink() or entry.name.startswith("."):
                         continue
                     self._add_file(entry)
@@ -123,10 +123,10 @@ def resolve_system_archive(
         )
     archive_path = matches[0]
 
-    # Look for sidecar next to archive or in index
+    # Tìm sidecar cạnh archive hoặc trong index.
     sidecar_candidate = archive_path.with_name(archive_path.name + ".sha256")
     if not sidecar_candidate.is_file():
-        # Look for sidecar ending in .sha256 in same parent directory
+        # Tìm file .sha256 trong cùng thư mục.
         candidates = list(archive_path.parent.glob("*.sha256"))
         if candidates:
             sidecar_candidate = candidates[0]
@@ -156,7 +156,7 @@ def extract_system_archive(archive_path: Path, target_dir: Path) -> Path:
 
     with zipfile.ZipFile(archive_path, "r") as zf:
         infolist = zf.infolist()
-        # Check if all members share a common leading prefix (e.g. 'project/')
+        # Kiểm tra các member có chung prefix thừa, chẳng hạn 'project/'.
         names = [info.filename for info in infolist]
         prefix = ""
         if names and all(name.startswith("project/") for name in names):
@@ -185,7 +185,7 @@ def extract_system_archive(archive_path: Path, target_dir: Path) -> Path:
                 while chunk := src.read(1024 * 1024):
                     dst.write(chunk)
 
-    # Validate essential layout
+    # Kiểm tra layout bắt buộc.
     required_paths = [
         target_dir / "src/uit_dsc_fixed_rag/__init__.py",
         target_dir / "configs/e45-inference-aligned-parent-lora-v1.json",

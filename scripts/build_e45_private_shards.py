@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the isolated four-shard E45 private Kaggle package."""
+"""Đóng gói bốn shard private E45 để chạy độc lập trên Kaggle."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def sha256(path: Path) -> str:
 
 
 def _zip_info(name: str) -> zipfile.ZipInfo:
-    """Return canonical metadata so identical inputs produce identical ZIP bytes."""
+    """Cố định metadata để cùng input luôn tạo ra cùng byte ZIP."""
     info = zipfile.ZipInfo(name, date_time=ZIP_TIMESTAMP)
     info.compress_type = zipfile.ZIP_DEFLATED
     info.create_system = 3
@@ -42,7 +42,7 @@ def _cell(source: str, kind: str = "code") -> dict[str, object]:
 
 
 def build_system() -> str:
-    """Inject private-shard code into a byte-verified copy of E45 R3 system code."""
+    """Ghép code private shard vào bản E45 R3 đã kiểm tra hash từng byte."""
     source_name = os.environ.get("E45_R3_SYSTEM_BIN")
     if not source_name:
         raise SystemExit("Set E45_R3_SYSTEM_BIN to the authorized external R3 system archive.")
@@ -84,15 +84,15 @@ def build_system() -> str:
 
 
 def _notebook(shard: int, system_sha: str) -> dict[str, object]:
-    markdown = f"""# E45 private candidate — resumable shard {shard} of 4
+    markdown = f"""# E45 private — shard {shard}/4 có checkpoint
 
-This notebook requires one local E45 release token issued only after Account A
-has produced a complete 705-step candidate archive. It never reads private
-answers. Select **GPU T4 x2**, enable Internet, then use **Save Version → Save & Run All → Always Save Output**.
+Notebook cần release token được tạo sau khi Account A hoàn tất 705 step và
+đóng gói candidate. Notebook không đọc đáp án private. Chọn **GPU T4 x2**,
+bật Internet, rồi chạy **Save Version → Save & Run All → Always Save Output**.
 """
     environment = r'''
-# Match the Account-A/B runtime preflight that has already passed on Kaggle.
-# Do not replace torch: Kaggle must expose the frozen CUDA build.
+# Dùng đúng runtime đã qua preflight ở Account A/B trên Kaggle.
+# Giữ nguyên torch: Kaggle phải cung cấp bản CUDA đã chốt.
 import importlib.metadata, subprocess, sys
 PIP_PINS = {
     "transformers": "5.16.1", "peft": "0.19.1", "accelerate": "1.13.0",
@@ -105,8 +105,8 @@ if need:
     print({"installing_missing_or_wrong_pins": need}, flush=True)
     subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", *need], check=True)
 
-# transformers 5.16 rejects Kaggle's optional torchao 0.10 during Qwen loading.
-# E45 uses NF4/FP16 and does not use torchao, so require its absence explicitly.
+# transformers 5.16 lỗi khi nạp Qwen cùng torchao 0.10 có sẵn trên Kaggle.
+# E45 dùng NF4/FP16, nên kiểm tra torchao đã được gỡ.
 try:
     importlib.metadata.version("torchao")
 except importlib.metadata.PackageNotFoundError:
@@ -183,8 +183,8 @@ assert len(admissions) == 1, "Attach exactly one E45 release token."
 ADMISSION = admissions[0]
 admission = load_admission(ADMISSION)
 
-# Hash every attached input exactly once.  This is deliberately visible: E00
-# and E02 are several GB, and a silent hash scan looked like a stuck notebook.
+# Hash mỗi input một lần và in tiến độ. E00/E02 có dung lượng vài GB;
+# quét hash im lặng dễ khiến người chạy tưởng notebook bị treo.
 all_input_files = sorted(path for path in INPUT.rglob("*") if path.is_file() and not path.is_symlink())
 print(f"[E45 private] Verifying {len(all_input_files)} attached files by SHA-256...", flush=True)
 hash_to_paths = {}
@@ -211,7 +211,7 @@ def copy_verified_directory(destination, required):
     assert actual == set(required), (actual, set(required))
     return destination
 
-# Resolve by content, never browser-renamed extension or Kaggle dataset slug.
+# Tìm bằng hash nội dung, không dựa vào tên file hay slug dataset Kaggle.
 candidate_source = resolve_one("Account A candidate", admission["candidate_archive_sha256"])
 candidate_sidecars = [
     path for path in all_input_files if path.name.endswith(".sha256")
@@ -231,13 +231,13 @@ RESUME_CHECKPOINT = find_private_resume_checkpoint(search_roots=[INPUT], shard_i
 print({"shard": f"{SHARD_INDEX}/{SHARD_COUNT}", "candidate": str(CANDIDATE), "private": str(PRIVATE), "resume_checkpoint": str(RESUME_CHECKPOINT) if RESUME_CHECKPOINT else None}, flush=True)
 '''
     execute = r'''
-# Explicit imports keep this cell robust after a notebook-cell rerun.  The
-# immutable inputs were already hash-resolved in the prior cell.
+# Import tường minh để cell vẫn chạy khi được chạy lại riêng lẻ.
+# Input bất biến đã được đối chiếu hash ở cell trước.
 import json, os, subprocess, sys, time
 from pathlib import Path
 from transformers import AutoTokenizer
 
-WALL_CLOCK_SAFETY_SECONDS = 39_000  # exit cleanly about 70 minutes before a 12h Kaggle limit
+WALL_CLOCK_SAFETY_SECONDS = 39_000  # dừng an toàn khoảng 70 phút trước giới hạn 12 giờ của Kaggle
 tokenizer_dir = WORK / "frozen-viqwen-tokenizer"
 assert not tokenizer_dir.exists(), "Restart the kernel before rerunning generation setup."
 print("[E45 private] Downloading pinned Vi-Qwen tokenizer, then starting answer-blind retrieval...", flush=True)
@@ -264,9 +264,8 @@ run_command = [
 ]
 if RESUME_CHECKPOINT is not None:
     run_command.extend(["--resume-checkpoint", str(RESUME_CHECKPOINT)])
-# Keep an operator-visible heartbeat while retrieval and both isolated T4
-# workers run. State files and the compact checkpoint archive update after
-# every committed answer.
+# In heartbeat khi retrieval và hai worker T4 chạy. State file và checkpoint
+# được cập nhật sau mỗi câu trả lời đã lưu.
 environment = {**os.environ, "PYTORCH_ALLOC_CONF": "expandable_segments:True"}
 process = subprocess.Popen(run_command, env=environment)
 started = time.monotonic()

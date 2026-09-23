@@ -257,7 +257,7 @@ def pack_training_evidence(
     def txt_counter(text: str) -> int:
         return count_text_tokens(text, tokenizer)
 
-    # 1. First verify compact seeds fit
+    # 1. Kiểm tra 12 seed dạng gọn có vừa ngân sách token không.
     chosen_compact: list[dict[str, Any]] = []
     for u in units:
         val = {k: v for k, v in u.items() if k not in ("seed", "expansions")}
@@ -270,7 +270,7 @@ def pack_training_evidence(
             f"All 12 compact seeds ({compact_tokens} tokens) cannot fit inside remaining prompt budget ({prompt_budget} tokens)"
         )
 
-    # 2. Run E21 parent expansion with prompt_budget
+    # 2. Mở rộng parent context theo E21 với ngân sách prompt.
     messages, merged, diagnostics = parent.pack(
         question,
         {"units": units},
@@ -283,21 +283,21 @@ def pack_training_evidence(
     rendered_prompt = render_canonical_prompt(messages, tokenizer)
     prompt_tokens = count_text_tokens(rendered_prompt, tokenizer)
 
-    # 3. Fallback: if prompt_tokens > prompt_budget, drop expansions from lowest-priority rank end
+    # 3. Nếu vượt ngân sách, bỏ expansion từ seed có độ ưu tiên thấp nhất.
     if prompt_tokens > prompt_budget:
-        # Revert expansions starting from highest seed rank (lowest priority)
+        # Hoàn tác expansion từ seed có rank lớn nhất.
         active_units = copy.deepcopy(units)
-        # Find which seeds were expanded
+        # Xác định các seed đã được mở rộng.
         expanded_ranks = sorted([action["seed_rank"] for action in diagnostics.get("expansions", [])], reverse=True)
         for rank_to_revert in expanded_ranks:
-            # Revert this rank to compact seed
+            # Trả seed ở rank này về dạng gọn.
             reverted_chosen: list[dict[str, Any]] = []
             for u in active_units:
                 val = {k: v for k, v in u.items() if k not in ("seed", "expansions")}
                 if u["rank"] == rank_to_revert:
                     val.update(u["seed"])
                 else:
-                    # check if u was previously expanded
+                    # Kiểm tra unit này từng được mở rộng chưa.
                     matching_action = [a for a in diagnostics.get("expansions", []) if a["seed_rank"] == u["rank"]]
                     if matching_action and u["expansions"]:
                         ext = next((e for e in u["expansions"] if e["kind"] == matching_action[0]["kind"]), None)
@@ -324,7 +324,7 @@ def pack_training_evidence(
             f"Prompt ({prompt_tokens}) + Answer ({answer_tokens_count}) = {prompt_tokens + answer_tokens_count} > {total_budget}"
         )
 
-    # Assert all 12 seed ranks are represented in merged spans
+    # Mọi rank của 12 seed phải còn hiện diện trong span sau khi merge.
     observed_ranks = sorted({u["rank"] for u in merged})
     if len(diagnostics.get("seed_ranks", [])) != 12 or diagnostics.get("skipped_seed_ranks"):
         raise E45Error(f"Lost seed ranks during packing: {diagnostics}")
@@ -353,7 +353,7 @@ def prepare_training_records(
     if not documents_path.is_file():
         raise E45Error(f"E00 documents not found: {documents_path}")
 
-    # Load targets
+    # Đọc target từ answer chính thức.
     records_raw = [json.loads(line) for line in records_path.open("r", encoding="utf-8")]
     e08a_raw = [json.loads(line) for line in e08a_path.open("r", encoding="utf-8")]
 
@@ -372,13 +372,13 @@ def prepare_training_records(
     if limit is not None:
         e08a_raw = e08a_raw[:limit]
 
-    # Collect wanted chunks
+    # Gom các chunk cần đọc.
     wanted_chunks: set[str] = set()
     for row in e08a_raw:
         for c in row["contexts"]:
             wanted_chunks.add(c["chunk_id"])
 
-    # Scan chunks and documents
+    # Quét chunk và document.
     seeds: dict[str, dict[str, Any]] = {}
     with chunks_path.open("r", encoding="utf-8") as f:
         for line in f:
@@ -423,11 +423,11 @@ def prepare_training_records(
         if not official_answer or not isinstance(official_answer, str):
             raise E45Error(f"Missing or non-string official answer for row {qid}")
 
-        # Tokenize answer and EOS
+        # Tokenize answer rồi thêm đúng một EOS.
         answer_ids = tokenizer(official_answer, add_special_tokens=False)["input_ids"] + [tokenizer.eos_token_id]
         answer_tokens_count = len(answer_ids)
 
-        # Build seed units
+        # Dựng unit cho từng seed.
         units: list[dict[str, Any]] = []
         for rank, context in enumerate(row["contexts"]):
             seed = seeds[context["chunk_id"]]
@@ -440,7 +440,7 @@ def prepare_training_records(
             )
             units.append(unit)
 
-        # Pack evidence
+        # Ghép evidence vào prompt.
         prompt_text, prompt_tokens_count, merged_spans, diagnostics = pack_training_evidence(
             question=question_text,
             units=units,
@@ -466,7 +466,7 @@ def prepare_training_records(
         prompt_lengths.append(prompt_tokens_count)
         total_lengths.append(total_tokens_count)
 
-        # Provenance verification: verify every span is exact E00 substring
+        # Kiểm tra provenance: mỗi span phải khớp đúng một đoạn trong E00.
         source_byte_hashes = {}
         for span in merged_spans:
             doc = documents[span["document_id"]]
@@ -495,7 +495,7 @@ def prepare_training_records(
             "labels": labels,
         }
 
-        # Deterministic record hash over payload without record_sha256
+        # Hash record theo payload, bỏ trường record_sha256 để tránh tự tham chiếu.
         rec_str = json.dumps(record_payload, sort_keys=True, ensure_ascii=False)
         record_payload["record_sha256"] = hashlib.sha256(rec_str.encode("utf-8")).hexdigest()
         materialized.append(record_payload)
@@ -628,8 +628,8 @@ class E45CausalCollator:
             "input_ids": torch.tensor(batch_input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(batch_attention_mask, dtype=torch.long),
             "labels": labels,
-            # Hidden state t predicts label t+1.  These are exactly the
-            # predecessor positions of the active answer+EOS labels.
+            # Hidden state tại t dự đoán label t+1. Đây là các vị trí ngay trước
+            # token đang được tính loss trong answer+EOS.
             "logits_to_keep": active_label_positions - 1,
             "shift_labels": labels[:, active_label_positions],
         }

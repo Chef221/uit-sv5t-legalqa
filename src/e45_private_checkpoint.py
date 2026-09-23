@@ -169,8 +169,8 @@ def write_private_checkpoint(
         state_hashes: dict[str, str] = {}
         for name, source in state_members.items():
             destination = states_destination / name
-            # Reading a state after its atomic rename is enough to obtain one
-            # complete version even when the sibling replica keeps working.
+            # Đọc sau atomic rename sẽ thấy một phiên bản hoàn chỉnh,
+            # kể cả khi worker còn lại vẫn đang chạy.
             destination.write_bytes(source.read_bytes())
             state_hashes[name] = file_sha256(destination)
         manifest_body = {
@@ -283,9 +283,8 @@ def find_private_resume_checkpoint(
                 with zipfile.ZipFile(candidate) as archive:
                     names = set(archive.namelist())
                     if PRIVATE_CHECKPOINT_MANIFEST not in names:
-                        # A completed shard bundle is not a resume source.  If
-                        # attached by mistake, fail before a new session could
-                        # silently regenerate that shard from zero.
+                        # Bundle đã hoàn tất không phải checkpoint để resume.
+                        # Nếu gắn nhầm, dừng trước khi session mới sinh lại shard từ đầu.
                         if "shard-report.json" in names:
                             try:
                                 report = json.loads(archive.read("shard-report.json").decode("utf-8"))

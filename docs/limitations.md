@@ -1,8 +1,7 @@
-# Limits of the evidence
+# Những gì kết quả này chưa chứng minh
 
-- The private metric values are the team's reported Codabench result; a durable official export is not in this source snapshot.
-- The score belongs to a deadline fallback run with 143 saved first-pass answers. It does not measure an all-restarts-complete run.
-- Private reference answers were unavailable to this public reproduction and are not required to generate the submission.
-- The source-only repository cannot regenerate numeric answers without organizer inputs, pinned model downloads, external indexes and adapter weights.
-- The E38 control and earlier experiments shaped the E45 hypothesis, but this private result alone is not a causal paired E45-versus-E38 improvement claim.
-- No leaderboard placement or prize claim is made.
+- Hai điểm private lấy từ `scores.json` đội nhận được. Repo chưa có bản export Codabench lưu lâu dài để kiểm tra độc lập điểm gắn với đúng ZIP đã nộp.
+- Điểm thuộc lần chạy sát deadline: 143 câu dùng output lượt đầu từ checkpoint. Không thể dùng điểm đó để mô tả một lần chạy mà mọi lượt sinh lại đều hoàn tất.
+- Repo source-only không thể tự sinh lại câu trả lời nếu thiếu dữ liệu BTC, model đúng revision, index và adapter weights.
+- Điểm private không phải phép so E45 với E38 trên cùng câu hỏi và cùng điều kiện. Chúng tôi không suy ra mức cải thiện nhân quả từ điểm này.
+- Repo không công bố thứ hạng hay giải thưởng khi chưa có nguồn kiểm chứng.

@@ -118,7 +118,7 @@ def safe_extract_archive(archive_path: Path, destination: Path) -> list[str]:
             if not name or name.endswith("/"):
                 continue
 
-            # Path traversal & absolute path rejection
+            # Từ chối path tuyệt đối hoặc đi ra ngoài thư mục đích.
             norm_name = os.path.normpath(name)
             if (
                 norm_name.startswith("..")
@@ -128,13 +128,13 @@ def safe_extract_archive(archive_path: Path, destination: Path) -> list[str]:
             ):
                 raise CheckpointError(f"Path traversal or absolute path detected in archive: {name}")
 
-            # Case collision check
+            # Từ chối tên trùng khi không phân biệt hoa/thường.
             lower_name = norm_name.lower()
             if lower_name in seen_names:
                 raise CheckpointError(f"Case collision or duplicate member detected: {name}")
             seen_names.add(lower_name)
 
-            # Check symlinks (UNIX mode attr)
+            # Kiểm tra symlink qua UNIX mode attribute.
             if (info.external_attr >> 16) & 0o120000 == 0o120000:
                 raise CheckpointError(f"Symlink detected in archive member: {name}")
 
@@ -168,7 +168,7 @@ def create_checkpoint_manifest(
         raise CheckpointError(f"Invalid trainer_state.json: {exc}") from exc
     global_step = state.get("global_step", 0)
 
-    # Check mandatory files
+    # Kiểm tra các file bắt buộc.
     for comp in MANDATORY_CHECKPOINT_COMPONENTS:
         p = checkpoint_dir / comp
         if not p.is_file():
@@ -182,7 +182,7 @@ def create_checkpoint_manifest(
             raise CheckpointError(f"Checkpoint missing mandatory RNG state for rank {r}: {rf.name}")
         rng_states[rf.name] = file_sha256(rf)
 
-    # Tokenizer files
+    # Kiểm tra file tokenizer.
     tokenizer_files = tokenizer_file_hashes(checkpoint_dir)
     if not tokenizer_files:
         raise CheckpointError("Checkpoint missing tokenizer files")
@@ -288,7 +288,7 @@ def validate_checkpoint_resume(
     if not (0 < global_step <= expected_total):
         raise CheckpointError(f"Invalid global_step {global_step} (expected 1..{expected_total})")
 
-    # Assert physical files match manifest hashes
+    # So hash file thật với manifest.
     for comp in MANDATORY_CHECKPOINT_COMPONENTS:
         p = checkpoint_dir / comp
         if not p.is_file():
@@ -312,7 +312,7 @@ def validate_checkpoint_resume(
     if trainer_state.get("global_step") != global_step:
         raise CheckpointError("Step mismatch between trainer_state.json and checkpoint-manifest.json")
 
-    # Check RNG states
+    # Kiểm tra RNG state.
     world_size = manifest["world_size"]
     for r in range(world_size):
         rf = checkpoint_dir / f"rng_state_{r}.pth"
@@ -425,7 +425,7 @@ def build_account_output_archive(
     if not required_top_level.issubset(present_top_level) or "worker-states" not in present_top_level:
         raise CheckpointError(f"{arm_type} output is missing required identity/state artifacts")
 
-    # Build manifest of all files
+    # Lập manifest cho toàn bộ file.
     for p in sorted(source_dir.rglob("*")):
         if p.is_file() and p.name != "manifest.json":
             if p.is_symlink():

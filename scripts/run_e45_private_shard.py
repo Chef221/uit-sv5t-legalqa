@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run or package one admitted E45 private global-index shard."""
+"""Chạy hoặc đóng gói một private shard E45 đã được xác thực."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
-# The curated public tree contains both E45 and private-shard modules in src/.
+# Bản public chỉ giữ các module E45 và private shard cần thiết trong src/.
 
 from e45_private_shards import (  # noqa: E402
     PRIVATE_EXECUTION_STATUS_SCHEMA,

@@ -262,7 +262,7 @@ def _load_dense_searcher(dense_dir: Path, dense_cfg: dict[str, Any], device: str
             expected_dimension=expected_dimension,
         )
 
-    # CPU searcher fallback using faiss or numpy
+    # Fallback tìm kiếm trên CPU bằng faiss hoặc numpy.
     try:
         import faiss
         index = faiss.read_index(str(faiss_path))
@@ -298,7 +298,7 @@ def prepare_holdout_contexts(
     output_dir.mkdir(parents=True, exist_ok=True)
     cfg = Config(config.raw, config.path) if not isinstance(config, Config) else config
 
-    # 1. Validate artifact manifests
+    # 1. Kiểm tra manifest của các artifact.
     e00_manifest = json.loads((e00_dir / "manifest.json").read_text(encoding="utf-8"))
     dense_manifest = json.loads((dense_dir / "manifest.json").read_text(encoding="utf-8"))
 
@@ -314,9 +314,9 @@ def prepare_holdout_contexts(
     ids = [q["question_id"] for q in questions]
     q_map = {q["question_id"]: q["question"] for q in questions}
 
-    # The JSONL is written atomically before its manifest. If a prior run was
-    # interrupted after that rename, validate every record and finalize it
-    # without repeating BM25/dense retrieval.
+    # JSONL được ghi bằng atomic rename trước manifest. Nếu lần chạy trước
+    # dừng sau rename, kiểm tra từng record rồi hoàn tất manifest mà không
+    # chạy lại BM25/dense retrieval.
     out_jsonl = output_dir / "holdout-contexts.jsonl"
     if out_jsonl.is_file():
         LOG.info("Found existing holdout JSONL; validating it for fail-closed recovery...")
@@ -349,7 +349,7 @@ def prepare_holdout_contexts(
         )
         return out_jsonl, manifest
 
-    # 2. Sparse BM25 retrieval
+    # 2. Truy xuất bằng BM25.
     LOG.info("Running sparse BM25 retrieval for %d questions...", len(ids))
     bm25_path = e00_dir / "bm25.sqlite3"
     sparse_top_ids: dict[str, list[str]] = {}
@@ -357,16 +357,16 @@ def prepare_holdout_contexts(
     try:
         for index, qid in enumerate(ids, start=1):
             hits = bm25_index.search(q_map[qid], top_k=retrieval_cfg["candidate_k_per_branch"])
-            # SqliteBm25Index returns immutable Bm25Hit objects, as does frozen
-            # P00. Accessing them as mappings breaks before hybrid retrieval.
+            # SqliteBm25Index trả Bm25Hit bất biến, giống P00 đã chốt.
+            # Đọc như dict sẽ lỗi trước khi tới hybrid retrieval.
             sparse_top_ids[qid] = [hit.chunk_id for hit in hits]
             if index == 1 or index % 25 == 0 or index == len(ids):
                 LOG.info("holdout_sparse_progress completed=%d total=%d", index, len(ids))
     finally:
         bm25_index.close()
 
-    # 3. Open and shape-check the pinned FAISS artifact before downloading the
-    # embedding model. This makes missing/binary-incompatible FAISS fail early.
+    # 3. Mở FAISS artifact và kiểm tra shape trước khi tải embedding model.
+    # Thiếu file hoặc binary không tương thích sẽ lộ lỗi sớm.
     LOG.info("Loading and validating pinned FAISS index before embedding model download...")
     searcher = _load_dense_searcher(dense_dir, dense_cfg, device)
     mapping = _load_mapping(dense_dir / "chunk_ids.jsonl", dense_cfg["record_count"])
@@ -429,7 +429,7 @@ def prepare_holdout_contexts(
             torch.cuda.empty_cache()
         LOG.info("Released dense retrieval model and index memory.")
 
-    # 4. Parent expansion using article_blocks and seed_unit
+    # 4. Mở rộng parent bằng article_blocks và seed_unit.
     LOG.info("Running parent expansion for %d questions...", len(ids))
     metadata_cfg = cfg.section("metadata_source")
     wanted_cids = {ctx["chunk_id"] for top12 in raw_contexts.values() for ctx in top12}
@@ -460,7 +460,7 @@ def prepare_holdout_contexts(
             units.append(seed_unit(seed, rank, block_by_chunk[seed["chunk_id"]], docs[seed["document_id"]], cfg.section("context_policy")))
         prepared_units[qid] = units
 
-    # 5. Render prompts using canonical P01 _prompt
+    # 5. Render prompt bằng hàm _prompt canonical của P01.
     LOG.info("Rendering prompts with Vi-Qwen tokenizer...")
     tokenizer = _tokenizer(tokenizer_path)
 

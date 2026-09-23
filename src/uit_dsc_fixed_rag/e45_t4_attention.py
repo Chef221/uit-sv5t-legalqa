@@ -59,9 +59,9 @@ def e45_t4_attention_forward(
         backends = [SDPBackend.EFFICIENT_ATTENTION]
         if hasattr(SDPBackend, "CUDNN_ATTENTION"):
             backends.append(SDPBackend.CUDNN_ATTENTION)
-        # FLASH_ATTENTION is harmless in the allowlist but is not expected on
-        # T4.  Math is deliberately absent so an unsupported fused path fails
-        # explicitly instead of consuming quadratic memory.
+        # FLASH_ATTENTION có thể nằm trong allowlist nhưng không kỳ vọng trên T4.
+        # Không bật math fallback: đường fused không hỗ trợ phải báo lỗi rõ,
+        # thay vì âm thầm dùng bộ nhớ tăng theo bình phương độ dài sequence.
         if hasattr(SDPBackend, "FLASH_ATTENTION"):
             backends.append(SDPBackend.FLASH_ATTENTION)
         context = sdpa_kernel(backends)

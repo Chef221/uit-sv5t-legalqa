@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local merger and official scoring CLI for E45 two-account results."""
+"""Ghép kết quả hai Account E45 và chấm điểm ở local bằng scorer chính thức."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import logging
 import sys
 from pathlib import Path
 
-# Add project root and src to sys.path
+# Cho phép import module từ thư mục gốc và src/.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 

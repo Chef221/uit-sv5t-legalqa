@@ -147,27 +147,27 @@ def audit_falsification_gates(
     model_inv = config.section("model_inventory")
     context_policy = config.section("context_policy")
 
-    # Gate 1: exactly 5636 records
+    # Gate 1: đúng 5.636 record.
     g1 = (len(materialized) == training_cfg["records_count"])
 
-    # Gate 2: exactly 5636 unique question IDs
+    # Gate 2: 5.636 question ID không trùng.
     qids = [r["question_id"] for r in materialized]
     g2 = (len(set(qids)) == training_cfg["records_count"])
 
-    # Gate 3: exact ordered training-ID SHA-256
+    # Gate 3: SHA-256 của danh sách ID đúng thứ tự.
     computed_ordered_id_sha = hashlib.sha256("\n".join(qids).encode("utf-8")).hexdigest()
     g3 = (computed_ordered_id_sha == PINNED_ORDERED_TRAINING_ID_SHA256)
 
-    # Gate 4: zero answer truncations
+    # Gate 4: không cắt ngắn answer.
     g4 = all(
         r["answer_tokens_count"] > 0
         and r["prompt_tokens_count"] + r["answer_tokens_count"] == r["total_tokens_count"]
         for r in materialized
     )
 
-    # Gate 5: independently tokenize each official target, append exactly one EOS,
-    # and compare it to the active portion of the persisted record.  Checking only
-    # the final token would accept a changed or shortened answer.
+    # Gate 5: tokenize lại từng answer chính thức, thêm đúng một EOS rồi so với
+    # phần label có hiệu lực trong record đã lưu. Chỉ kiểm tra token cuối sẽ
+    # không phát hiện answer bị đổi hoặc cắt ngắn.
     g5_checks = []
     g6_checks = []
     eos_id = tokenizer.eos_token_id
@@ -185,8 +185,8 @@ def audit_falsification_gates(
 
         official = official_targets.get(str(r["question_id"]))
         expected_answer = prior_targets.get(str(r["question_id"]))
-        # The prior record authority is a pinned copy of the official selected
-        # row.  If the same QID appears in official train, require exact text.
+        # Prior record là bản đã pin của dòng được chọn từ train chính thức.
+        # Nếu QID còn trong train, nội dung phải khớp tuyệt đối.
         if not isinstance(expected_answer, str) or (isinstance(official, dict) and official.get("answer") != expected_answer):
             g5_checks.append(False)
         else:
@@ -194,11 +194,11 @@ def audit_falsification_gates(
                 expected_answer, add_special_tokens=False
             )["input_ids"] + [eos_id]
             active_target = input_ids[prompt_len:]
-            # An official answer may legitimately contain an EOS-like token in its
-            # text representation.  Exact sequence equality is the invariant.
+            # Answer chính thức có thể chứa chuỗi trông giống EOS. Điều cần
+            # kiểm tra là toàn bộ token sequence phải khớp chính xác.
             g5_checks.append(active_target == expected_target and ans_len == len(expected_target))
 
-        # Gate 6: assistant-only mask (-100 on prompt, input_ids on answer)
+        # Gate 6: mask chỉ tính loss trên answer (-100 ở prompt).
         prompt_masked = (labels[:prompt_len] == [-100] * prompt_len)
         ans_active = (labels[prompt_len:] == input_ids[prompt_len:])
         g6_checks.append(prompt_masked and ans_active)
@@ -206,22 +206,21 @@ def audit_falsification_gates(
     g5 = all(g5_checks)
     g6 = all(g6_checks)
 
-    # Gate 7: sequence length at most 8192
+    # Gate 7: sequence không quá 8.192 token.
     g7 = all(r["total_tokens_count"] <= 8192 for r in materialized) and max(r["total_tokens_count"] for r in materialized) <= 8192
 
-    # Gate 8: reference isolation: zero reference/gold fields in contexts or prompts
+    # Gate 8: không có reference/gold field trong context hoặc prompt.
     g8_checks = []
     for r in materialized:
-        # Check no gold/reference keys
+        # Từ chối key gold/reference.
         has_leak = any(k in r for k in ["reference_answer", "gold_evidence", "reference"])
         has_leak_in_units = any("answer" in u for u in r.get("units", []))
         g8_checks.append(not has_leak and not has_leak_in_units)
     g8 = all(g8_checks)
 
-    # Gate 9: verify every document hash asserted by every materialized row, and
-    # require the materializer's independently counted exact-span checks.  The
-    # materializer raises at the precise `cleaned_text[start:end]` comparison for
-    # each parent/seed span before a row is persisted.
+    # Gate 9: kiểm tra document hash của mọi record và số span khớp tuyệt đối
+    # mà materializer đã đếm riêng. Trước khi lưu record, materializer so từng
+    # parent/seed span với `cleaned_text[start:end]` và báo lỗi nếu khác.
     LOG.info("Auditing Gate 9: substring provenance against real E00 documents...")
     doc_path = e00_dir / config.section("metadata_source")["documents_path"]
     required_doc_hashes: dict[str, set[str]] = {}
@@ -245,7 +244,7 @@ def audit_falsification_gates(
         )
     )
 
-    # Gate 10: direct row-by-row E08A seed comparison
+    # Gate 10: so thứ tự seed với E08A theo từng dòng.
     LOG.info("Auditing Gate 10: direct row-by-row E08A seed order comparison...")
     e08a_seeds_map = {}
     with e08a_results_path.open("r", encoding="utf-8") as f:
@@ -254,10 +253,9 @@ def audit_falsification_gates(
             e08a_seeds_map[str(item["question_id"])] = [c["chunk_id"] for c in item["contexts"][:12]]
     g10 = all(r["ordered_seed_ids"] == e08a_seeds_map[str(r["question_id"])] for r in materialized)
 
-    # Gate 11: mutate one real target in an isolated temporary authority file
-    # while preserving its token count.  The frozen retrieval row, question,
-    # evidence decisions, prompt token IDs and prompt hash must stay byte equal.
-    # The mutation is never persisted or used for a training/generation run.
+    # Gate 11: đổi target của một dòng thật trong file tạm, giữ nguyên số token.
+    # Retrieval row, câu hỏi, quyết định chọn evidence, prompt IDs và prompt hash
+    # phải giữ nguyên từng byte. Target đã đổi không được dùng để train/sinh.
     LOG.info("Auditing Gate 11: real-row answer-mutation parity...")
     g11 = False
     try:
@@ -266,8 +264,8 @@ def audit_falsification_gates(
             first_qid = str(materialized[0]["question_id"])
             pos = next(i for i, row in enumerate(authority_rows) if str(row["question_id"]) == first_qid)
             answer_ids = tokenizer(authority_rows[pos]["answer"], add_special_tokens=False)["input_ids"]
-            # Rotate token IDs rather than invent text.  Try every non-trivial
-            # rotation until decode/encode retains exactly the same length.
+            # Xoay token IDs thay vì tự tạo văn bản. Thử các phép xoay đến khi
+            # decode/encode giữ đúng độ dài cũ.
             replacement = None
             decoded_original = tokenizer.decode(answer_ids, clean_up_tokenization_spaces=False)
             if decoded_original != authority_rows[pos]["answer"] and tokenizer(decoded_original, add_special_tokens=False)["input_ids"] == answer_ids:
@@ -309,10 +307,9 @@ def audit_falsification_gates(
         LOG.error("Gate 11 answer-mutation parity could not run: %s", exc)
         g11 = False
 
-    # Gate 12: each record was rendered through the imported canonical P00/P01
-    # renderer during materialization.  Re-hash exact prompt IDs from the stored
-    # record boundaries and require every call to be recorded by the materializer.
-    # This rejects partial materializations and label-only surrogate prompts.
+    # Gate 12: mọi record phải đi qua renderer P00/P01 canonical khi materialize.
+    # Hash lại prompt IDs theo ranh giới đã lưu và kiểm tra đủ số lần render.
+    # Nhờ vậy record thiếu hoặc prompt thay thế chỉ có label sẽ bị từ chối.
     LOG.info("Auditing Gate 12: canonical E44/P00 render accounting and prompt hash integrity...")
     g12 = all(
         bool(r.get("rendered_prompt_sha256"))
@@ -325,15 +322,15 @@ def audit_falsification_gates(
         or summary.get("materialization_identity_verified") == PINNED_MATERIALIZED_JSONL_SHA256
     )
 
-    # Gate 13: parent expansion retention rate >= 95.0%
+    # Gate 13: tỷ lệ giữ parent expansion ít nhất 95,0%.
     expansion_rate = summary["expansion_retention_rate"]
     g13 = (expansion_rate >= 0.95)
 
-    # Gate 14: mean prompt length >= 4887.008 tokens
+    # Gate 14: prompt trung bình ít nhất 4.887,008 token.
     mean_prompt_len = summary["mean_prompt_length"]
     g14 = (mean_prompt_len >= 4887.008)
 
-    # Gate 15: recompute both persisted aggregate identities from disk.
+    # Gate 15: tính lại hai aggregate identity từ file trên đĩa.
     observed_file_sha = file_sha256(output_jsonl_path)
     observed_records_sha = hashlib.sha256(
         "".join(r["record_sha256"] for r in materialized).encode("utf-8")
@@ -343,7 +340,7 @@ def audit_falsification_gates(
         and observed_records_sha == summary.get("aggregate_records_sha256")
     )
 
-    # Gate 16: fail-closed audit of all quality-affecting config fields
+    # Gate 16: kiểm tra toàn bộ field config ảnh hưởng chất lượng; sai là dừng.
     LOG.info("Auditing Gate 16: fail-closed quality config contract audit...")
     expected_contract = {
         "training": {
@@ -468,7 +465,7 @@ def main() -> int:
             "".join(row["record_sha256"] for row in materialized).encode("utf-8")
         ).hexdigest()
 
-    # Execute active computed audits
+    # Chạy các phép kiểm tra thực tế, không đánh dấu pass theo giả định.
     gate_checks = audit_falsification_gates(
         materialized=materialized,
         config=config,

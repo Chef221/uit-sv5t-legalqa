@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one E45 arm through the only permitted P01 two-replica scheduler."""
+"""Chạy một nhánh E45 bằng lịch hai replica P01 đã chốt."""
 
 from __future__ import annotations
 

@@ -1,10 +1,9 @@
 ﻿#!/usr/bin/env python3
-"""Issue a local E45 private release token bound to a complete candidate.
+"""Tạo release token local cho private E45, gắn với candidate đã hoàn tất.
 
-The normal admission mode requires a heldout pass.  The direct-release mode is
-available only because the user explicitly authorized private execution once
-the Account A candidate has completed.  Both modes validate the same complete
-candidate archive and official private question identity.
+Chế độ thông thường yêu cầu vượt qua holdout. Chế độ direct-release được dùng
+theo quyết định của đội: chạy private ngay sau khi Account A hoàn tất.
+Cả hai chế độ đều xác minh archive candidate và bộ câu hỏi private chính thức.
 """
 
 from __future__ import annotations
@@ -50,8 +49,8 @@ def main() -> int:
     config = load_config(args.e45_config)
     _, _, private_identity = load_private_questions(args.private_questions)
     candidate_sha = file_sha256(args.candidate_bin)
-    # A browser may rename ZIP bytes from .bin to .zip during download. Resolve
-    # exactly one nearby sidecar by its digest rather than relying on basename.
+    # Trình duyệt có thể đổi đuôi .bin thành .zip khi tải xuống.
+    # Tìm đúng một sidecar theo hash, không dựa vào basename.
     sidecars = []
     for sidecar in args.candidate_bin.parent.glob("*.sha256"):
         try:
@@ -69,16 +68,16 @@ def main() -> int:
     }
     from tempfile import TemporaryDirectory
     with TemporaryDirectory(prefix="e45_admission_") as temporary:
-        # materialize_candidate_adapter also proves the archive manifest and the
-        # completed 705-step E45 run.  Fill provisional hashes from its extracted bytes.
+        # materialize_candidate_adapter kiểm tra manifest và 705 step đã hoàn tất.
+        # Lấy hash adapter từ nội dung giải nén.
         candidate_root = Path(temporary) / "adapter"
         provisional.update({
             "candidate_adapter_sha256": "0" * 64,
             "candidate_adapter_config_sha256": "0" * 64,
             "candidate_complete_sha256": "0" * 64,
         })
-        # The helper needs the actual expected values. Obtain them from a safe
-        # temporary extraction through the E45 archive extractor first.
+        # Hàm kiểm tra cần hash kỳ vọng thực tế. Giải nén an toàn vào thư mục
+        # tạm để lấy các giá trị đó trước.
         from uit_dsc_fixed_rag.e45_checkpoint import safe_extract_archive
         extracted = Path(temporary) / "candidate"
         safe_extract_archive(args.candidate_bin, extracted)

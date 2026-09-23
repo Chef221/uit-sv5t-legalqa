@@ -116,8 +116,8 @@ class E45GeneratorWorker:
         if any(not (self.adapter_path / name).is_file() for name in required):
             raise GenerationError("Adapter directory must contain adapter_model.safetensors and adapter_config.json")
         if sharded:
-            # P01 uses Accelerate's balanced two-T4 dispatch; `auto` can legally
-            # place all layers on a single device and is therefore not equivalent.
+            # P01 chia model cân bằng trên hai T4 bằng Accelerate. `auto` có thể
+            # đặt toàn bộ layer trên một GPU nên không tương đương.
             device_map: dict[str, Any] | str | None = "balanced" if torch.cuda.is_available() else None
         else:
             if device is None:
@@ -136,8 +136,8 @@ class E45GeneratorWorker:
         model.eval()
         if sharded and torch.cuda.is_available():
             device_map_observed = dict(getattr(base, "hf_device_map", {}) or {})
-            # Reuse the P01 normalizer: Accelerate may report a CUDA placement
-            # as either ``cuda:0`` or integer ``0`` depending on its version.
+            # Dùng lại bộ chuẩn hóa của P01: tùy phiên bản Accelerate, GPU có thể
+            # được ghi là ``cuda:0`` hoặc số nguyên ``0``.
             from .final_public_e40 import _devices
 
             devices = _devices(device_map_observed)
@@ -185,8 +185,8 @@ class E45GeneratorWorker:
         input_hash = hashlib.sha256(
             json.dumps(tensors["input_ids"][0].detach().cpu().tolist(), separators=(",", ":")).encode("utf-8")
         ).hexdigest()
-        # P01 classifies completion against the loaded model's generation config,
-        # not a separately supplied tokenizer default.
+        # P01 phân loại điểm dừng theo generation config của model đã load,
+        # không lấy giá trị mặc định riêng từ tokenizer.
         eos_token_id = getattr(model.generation_config, "eos_token_id", tokenizer.eos_token_id)
         return answer, _finish_reason(new_ids, eos_token_id, limit), len(new_ids), input_hash
 
@@ -343,8 +343,8 @@ def execute_p01_generation(worker: E45GeneratorWorker, *, contexts: list[dict[st
             prior_finish = provisional[prepared["sample_index"]]["finish_reason"]
             provisional[prepared["sample_index"]].update({"raw_answer": answer, "initial_finish_reason": prior_finish, "finish_reason": finish, "second_pass_tokens": count, "worker_path": provisional[prepared["sample_index"]]["worker_path"] + "_pass2"})
         del model
-        # The durable worker state that owns the first-pass record also records
-        # the bounded sharded restart.  This avoids an unbound second execution.
+        # Worker state sở hữu record lượt đầu cũng ghi lượt sinh lại có giới hạn
+        # trên sharded worker, để không tạo một lần chạy thứ hai thiếu ràng buộc.
         for state in worker_states.values():
             state["second_pass_indices"] = [
                 row["sample_index"] for row in regenerate if row["sample_index"] in state.get("completed", [])
