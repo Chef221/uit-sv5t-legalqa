@@ -1,0 +1,170 @@
+{
+  "schema_version": "1.0",
+  "experiment_id": "E45-inference-aligned-parent-lora-v1",
+  "model_inventory": {
+    "base_model": "AITeamVN/Vi-Qwen2-3B-RAG",
+    "base_revision": "eaf427c24d86066a2b35828c499b7db3af321227",
+    "architecture": "Qwen2ForCausalLM",
+    "generator_published_parameters": 3085938688,
+    "embedding_published_parameters": 567754752,
+    "expected_lora_trainable_parameters": 14966784,
+    "expected_actual_stack_total": 3668660224,
+    "exclusive_competition_limit": 4000000000
+  },
+  "training": {
+    "records_count": 5636,
+    "training_sample_ids_sha256": "fee946ada7cbfca7df04ffe1c3d9f06907808c0dc59600e6f1f8d579076742dd",
+    "epochs": 1.0,
+    "expected_optimizer_steps": 705,
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "seed": 20260830,
+    "learning_rate": 0.0001,
+    "per_device_train_batch": 1,
+    "gradient_accumulation": 4,
+    "world_size": 2,
+    "effective_global_batch": 8,
+    "warmup_ratio": 0.03,
+    "scheduler": "cosine",
+    "weight_decay": 0.0,
+    "save_interval_steps": 32,
+    "quantization": "nf4-double-quant",
+    "compute_dtype": "float16",
+    "gradient_checkpointing": true,
+    "maximum_total_sequence": 8192,
+    "loss": "assistant-target-only",
+    "target": "complete-official-answer-followed-by-eos"
+  },
+  "source_e00": {
+    "artifact_version": "e00-v2",
+    "manifest_sha256": "04efd3905ad6d2758461587ca68d7d70fa2c568855b78f0c762c7a37ba547b2e",
+    "bm25_bytes": 2551095296,
+    "bm25_sha256": "f874a9528433f0db64efe7b3e951028d89433cbfb4c6e951a182b531acf1e0f0"
+  },
+  "metadata_source": {
+    "chunks_path": "chunks.jsonl",
+    "documents_path": "documents.jsonl",
+    "chunks_sha256": "1e48c7762765ac2dd169045e9f5327c5311db3f1da8a6007ef70fff58718e367",
+    "documents_sha256": "f2968724e8a25124034b9ff2144427f8853ed37359443bd149ec3832f4c1fed7"
+  },
+  "source_dense": {
+    "candidate": "embedding_aiteam",
+    "model_id": "AITeamVN/Vietnamese_Embedding",
+    "revision": "dea33aa1ab339f38d66ae0a40e6c40e0a9249568",
+    "parameter_count": 567754752,
+    "dimension": 1024,
+    "record_count": 457340,
+    "dense_faiss_sha256": "96ab6b8afcb376e327116642e0ffc378d633d9f712b698afd0e43dcee654a633",
+    "chunk_ids_sha256": "6e26962a0963f50460ada74707db31e604dfe4991e7d7150afeec89aa363fb99",
+    "query_prefix": ""
+  },
+  "retrieval": {
+    "candidate_k_per_branch": 40,
+    "rrf_constant": 60,
+    "sparse_weight": 0.5,
+    "dense_weight": 0.5,
+    "fused_top_k": 20,
+    "selected_contexts": 12,
+    "normalize_query_embeddings": true,
+    "dense_search_backend": "torch-cuda-exact-flat-ip-float32-batched",
+    "reranker": null
+  },
+  "context_policy": {
+    "seed_contexts": 12,
+    "max_parent_tokens": 1200,
+    "max_parent_characters": 6000,
+    "neighbor_radius": 1,
+    "expansion_order": [
+      "whole_article",
+      "both_neighbors",
+      "previous_neighbor",
+      "next_neighbor"
+    ],
+    "evict_seed_for_expansion": false,
+    "merge": "overlapping-or-touching-exact-document-spans",
+    "metadata": "one-source-header-per-document-article-label-per-span",
+    "max_input_tokens": 8192
+  },
+  "prompt": {
+    "system_prompt": "Bạn là trợ lý pháp luật Việt Nam. Chỉ trả lời dựa trên các tài liệu được cung cấp. Không bịa thông tin hoặc viện dẫn không có trong tài liệu. Nếu tài liệu không đủ, hãy nói rõ là không đủ căn cứ.",
+    "answer_instruction": "Hãy trả lời trực tiếp câu hỏi bằng tiếng Việt, nêu căn cứ pháp lý và các điều kiện hoặc mốc thời gian quan trọng nếu tài liệu có đề cập. Không nhắc đến mã tài liệu nội bộ."
+  },
+  "holdout": {
+    "sample_size": 200,
+    "group_count": 199,
+    "sample_ids_sha256": "36c6faad7e7d52030ea98b00102281c707a798e33845a7ddb89f96473717d4d1",
+    "group_salt": "e34-long-context-holdout-v1\u0000",
+    "retrieval": {
+      "bm25_top_k": 40,
+      "dense_top_k": 40,
+      "rrf_weight_bm25": 0.5,
+      "rrf_weight_dense": 0.5,
+      "rrf_constant": 60,
+      "fused_pool_top_k": 20,
+      "seed_contexts": 12
+    }
+  },
+  "inference": {
+    "precision": "float16",
+    "greedy_decoding": true,
+    "sampling": false,
+    "initial_max_new_tokens": 1024,
+    "second_pass_max_new_tokens": 1536,
+    "clean_up_tokenization_spaces": false,
+    "replica_max_input_tokens": 6000,
+    "cleanup_stages": [
+      "e43-exact-partial-plus-tail-plus-long-fixed-point",
+      "e44-numbered-plus-short-partial-plus-tail-plus-long-fixed-point"
+    ],
+    "maximum_fixed_point_passes_per_stage": 16,
+    "suffix_only": true,
+    "interior_trim": false
+  },
+  "unified_clean": {
+    "normal_partial_min_tokens": 8,
+    "normal_partial_max_tokens": 256,
+    "short_structured_partial_min_tokens": 2,
+    "short_structured_partial_max_tokens": 7,
+    "long_block_min_tokens": 32,
+    "e44_long_block_max_tokens": 512,
+    "maximum_fixed_point_passes_per_stage": 16,
+    "suffix_only": true,
+    "interior_trim": false
+  },
+  "control": {
+    "adapter_sha256": "e8f55f088fe2c5951c336095a5682af3a53f62c8be186bd5bfbf34741d895222"
+  },
+  "runtime": {
+    "torch": "2.10.0+cu128",
+    "transformers": "5.16.1",
+    "peft": "0.19.1",
+    "accelerate": "1.13.0",
+    "bitsandbytes": "0.50.2",
+    "sentence-transformers": "5.4.1",
+    "faiss-cpu": "1.15.0",
+    "numpy": "2.0.2"
+  },
+  "parameter_budget": {
+    "exclusive_limit": 4000000000,
+    "embedding": 567754752,
+    "generator": 3085938688,
+    "adapter_parameter_cap": 50000000,
+    "maximum_stack_total": 3703693440
+  },
+  "acceptance_gate": {
+    "min_mean_paired_meteor_delta": 0.01,
+    "min_bootstrap_ci_lower_bound": 0.0,
+    "min_rougel_delta": 0.0,
+    "candidate_length_finish_less_than_control": true
+  }
+}

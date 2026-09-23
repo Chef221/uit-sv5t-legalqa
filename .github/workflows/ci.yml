@@ -1,0 +1,37 @@
+name: source-integrity
+on:
+  push:
+  pull_request:
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile source and notebooks
+        run: |
+          python -m compileall -q src scripts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('notebooks').glob('*.ipynb'):
+              book = json.loads(path.read_text(encoding='utf-8'))
+              for index, cell in enumerate(book['cells']):
+                  if cell['cell_type'] == 'code':
+                      compile(''.join(cell['source']), f'{path}:{index}', 'exec')
+          PY
+      - name: Enforce source-only release
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          forbidden = {'.bin', '.zip', '.jsonl', '.sqlite3', '.faiss', '.safetensors', '.pt', '.ckpt'}
+          tracked = [Path(x) for x in __import__('subprocess').check_output(['git', 'ls-files', '-z']).decode().split('\0') if x]
+          bad = [str(p) for p in tracked if p.suffix.lower() in forbidden or any(part.lower() in {'data', 'private', 'checkpoints', 'outputs', 'artifacts'} for part in p.parts) or p.stat().st_size > 2_000_000]
+          assert not bad, f'Forbidden tracked artifacts: {bad}'
+          PY
+      - name: Run dependency-light integrity tests
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests/test_e45_static_prepare_jsonl.py tests/test_private_checkpoint_resume.py
