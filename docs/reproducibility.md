@@ -1,6 +1,6 @@
-# Tái lập E45 từ source
+# Tái lập hệ thống từ source
 
-Repo này **chỉ có source**. Muốn chạy lại đầy đủ cần lấy dữ liệu Task 2 từ kênh chính thức của BTC, tải model đúng revision trong `configs/e45-inference-aligned-parent-lora-v1.json`, rồi cung cấp E00/E02 index và adapter theo [hash đã ghi](artifact-hashes.md). Không đưa các file đó vào Git.
+Repo này **chỉ có source**. Muốn chạy lại đầy đủ cần lấy dữ liệu Task 2 từ kênh chính thức của BTC, tải model đúng revision trong `configs/e45-inference-aligned-parent-lora-v1.json`, rồi cung cấp SQLite BM25 index, dense vector index và LoRA adapter theo [hash đã ghi](artifact-hashes.md). Không đưa các file đó vào Git. Tên config/notebook vẫn mang mã thí nghiệm để giữ khớp với artifact đã chạy; [bảng đối chiếu](experiment-ledger.md#mã-thí-nghiệm-còn-trong-source) giải thích vai trò kỹ thuật của chúng.
 
 ## Đường chạy của bản nộp
 

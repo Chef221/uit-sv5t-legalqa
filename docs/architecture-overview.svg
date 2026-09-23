@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1590" role="img" aria-labelledby="title desc">
-  <title id="title">Kiến trúc E45</title>
+  <title id="title">Kiến trúc Hybrid RAG của UIT-SV5T</title>
   <desc id="desc">Sơ đồ dọc từ corpus và câu hỏi qua BM25, dense retrieval, RRF, parent context, prompt, Vi-Qwen LoRA, sinh câu trả lời và ghép submission.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -25,13 +25,13 @@
     </style>
   </defs>
   <rect x="0" y="0" width="1100" height="1590" rx="28" fill="url(#bg)"/>
-  <text class="base title" x="80" y="80">E45: từ câu hỏi đến bản nộp</text>
-  <text class="base sub" x="80" y="116">Retrieval cố định · parent context · Vi-Qwen LoRA · bốn shard private</text>
+  <text class="base title" x="80" y="80">UIT-SV5T · Hybrid RAG cho hỏi đáp pháp luật</text>
+  <text class="base sub" x="80" y="116">BM25 + dense retrieval · RRF · ngữ cảnh Điều luật · Vi-Qwen LoRA</text>
 
   <rect class="card" x="80" y="160" width="450" height="136" rx="18"/>
   <text class="base tag" x="110" y="196">DỮ LIỆU OFFLINE</text>
   <text class="base head" x="110" y="233">Corpus chính thức của BTC</text>
-  <text class="base body" x="110" y="267">E00 BM25 · E02 dense index</text>
+  <text class="base body" x="110" y="267">SQLite BM25 · dense vector index</text>
 
   <rect class="card" x="570" y="160" width="450" height="136" rx="18"/>
   <text class="base tag" x="600" y="196">INPUT INFERENCE</text>
@@ -48,26 +48,26 @@
   <path class="line" d="M550 512 L550 554"/>
   <rect class="card" x="130" y="560" width="840" height="142" rx="20"/>
   <text class="base tag" x="166" y="598">02 · DỰNG CONTEXT</text>
-  <text class="base head" x="166" y="637">E21 mở rộng seed về parent context</text>
+  <text class="base head" x="166" y="637">Mở rộng chunk về ngữ cảnh Điều luật</text>
   <text class="base body" x="166" y="672">Giữ thứ tự seed, span nguồn và giới hạn token</text>
 
   <path class="line" d="M550 702 L550 744"/>
   <rect class="card" x="130" y="750" width="840" height="142" rx="20"/>
   <text class="base tag" x="166" y="788">03 · PROMPT</text>
-  <text class="base head" x="166" y="827">P00/P01: câu hỏi + evidence đã chọn</text>
+  <text class="base head" x="166" y="827">Câu hỏi + evidence đã chọn</text>
   <text class="base body" x="166" y="862">Cùng cách dựng prompt cho train và inference</text>
 
   <path class="line" d="M550 892 L550 934"/>
   <rect x="130" y="940" width="840" height="158" rx="20" fill="url(#model)" stroke="#6eaff5" stroke-width="2"/>
   <text class="base tag" x="166" y="980" style="fill:#c4fff2">04 · GENERATOR</text>
-  <text class="base head" x="166" y="1022" style="font-size:29px">Vi-Qwen2-3B-RAG + E45 LoRA rank 8</text>
+  <text class="base head" x="166" y="1022" style="font-size:29px">Vi-Qwen2-3B-RAG + LoRA rank 8</text>
   <text class="base body" x="166" y="1062" style="fill:#edf8ff">Train 5.636 record chính thức · 705 optimizer step</text>
 
   <path class="line" d="M550 1098 L550 1140"/>
   <rect class="card" x="130" y="1146" width="840" height="142" rx="20"/>
   <text class="base tag" x="166" y="1184">05 · SINH CÂU TRẢ LỜI</text>
   <text class="base head" x="166" y="1223">Greedy 1.024 token; sinh lại khi chạm trần</text>
-  <text class="base body" x="166" y="1258">Lượt hai tối đa 1.536 token · E43/E44 cleanup</text>
+  <text class="base body" x="166" y="1258">Lượt hai tối đa 1.536 token · cleanup phần đuôi lặp</text>
 
   <path class="line" d="M550 1288 L550 1330"/>
   <rect class="card" x="130" y="1336" width="840" height="142" rx="20"/>

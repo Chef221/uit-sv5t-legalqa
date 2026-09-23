@@ -1,10 +1,10 @@
-# Nội quy Task 2 và cách E45 áp dụng
+# Nội quy Task 2 và cách hệ thống áp dụng
 
 Trang này tóm tắt những điều đội đã kiểm tra trong tài liệu và scoring program của UIT DSC 2026 Task 2. Đây là ghi chép kỹ thuật của đội, không thay thế thông báo chính thức của Ban tổ chức. Source tài liệu/scorer của BTC không được đưa vào repo.
 
-| Quy định hoặc format đã kiểm tra | Cách E45 xử lý |
+| Quy định hoặc format đã kiểm tra | Cách hệ thống xử lý |
 |---|---|
-| Chỉ dùng dữ liệu train và corpus chính thức; không thêm corpus ngoài, synthetic QA, answer, evidence hay hard negative | E45 train trên 5.636 record chính thức; context lấy từ corpus BTC. Pipeline không gọi legal API ngoài. |
+| Chỉ dùng dữ liệu train và corpus chính thức; không thêm corpus ngoài, synthetic QA, answer, evidence hay hard negative | LoRA train trên 5.636 record chính thức; context lấy từ corpus BTC. Pipeline không gọi legal API ngoài. |
 | Tổng số tham số của mọi model trong hệ thống Task 2 phải **nhỏ hơn 4 tỷ** | Bản inventory đã chốt ghi 3.668.660.224 tham số. Quantization và LoRA không được dùng để trừ số tham số của base model khi tính ngưỡng. |
 | Model phải tải và chạy dưới quyền kiểm soát của đội; không dùng model API hay sản phẩm AI trung gian | Generator và embedding model được pin theo revision, chạy trực tiếp trong môi trường GPU của đội. |
 | Phải ghi tên, URL, số tham số, license và trạng thái đăng ký model | Config có identity và số tham số. Repo này chưa có bằng chứng độc lập về việc đăng ký model, nên không suy ra trạng thái đó từ điểm thi. |
