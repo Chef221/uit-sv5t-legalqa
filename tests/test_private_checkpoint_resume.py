@@ -11,9 +11,7 @@ import pytest
 
 
 PRIVATE_ROOT = Path(__file__).resolve().parents[1]
-E45_ROOT = PRIVATE_ROOT.parent / "implementation_r3"
 sys.path.insert(0, str(PRIVATE_ROOT / "src"))
-sys.path.insert(1, str(E45_ROOT / "src"))
 
 from e45_private_checkpoint import (  # noqa: E402
     PrivateCheckpointError,

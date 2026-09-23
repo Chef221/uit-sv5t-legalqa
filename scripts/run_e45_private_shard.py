@@ -10,11 +10,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
-# In a Kaggle system archive all E45 modules are under PROJECT_ROOT/src.
-# In the local release tree they remain in the immutable sibling implementation_r3.
-local_e45_source = PROJECT_ROOT.parent / "implementation_r3" / "src"
-if local_e45_source.is_dir():
-    sys.path.insert(0, str(local_e45_source))
+# The curated public tree contains both E45 and private-shard modules in src/.
 
 from e45_private_shards import (  # noqa: E402
     PRIVATE_EXECUTION_STATUS_SCHEMA,

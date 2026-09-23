@@ -20,7 +20,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT.parent / "implementation_r3" / "src"))
 
 from e45_private_checkpoint import canonical_sha256  # noqa: E402
 from e45_private_shards import (  # noqa: E402

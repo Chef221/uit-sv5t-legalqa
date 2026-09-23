@@ -5,14 +5,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import zipfile
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-E45_R3 = ROOT.parent / "implementation_r3"
-SYSTEM = ROOT / "E45_PRIVATE_SHARDS_SYSTEM_R4_RESUMABLE.bin"
-NOTEBOOKS = ROOT / "notebooks-resumable"
+SYSTEM = ROOT / "artifacts/E45_PRIVATE_SHARDS_SYSTEM_R4_RESUMABLE.bin"
+NOTEBOOKS = ROOT / "artifacts/notebooks-resumable"
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 
@@ -43,7 +43,10 @@ def _cell(source: str, kind: str = "code") -> dict[str, object]:
 
 def build_system() -> str:
     """Inject private-shard code into a byte-verified copy of E45 R3 system code."""
-    source = E45_R3 / "E45_TWO_ACCOUNT_SYSTEM_R3.bin"
+    source_name = os.environ.get("E45_R3_SYSTEM_BIN")
+    if not source_name:
+        raise SystemExit("Set E45_R3_SYSTEM_BIN to the authorized external R3 system archive.")
+    source = Path(source_name)
     sidecar = Path(str(source) + ".sha256")
     if not source.is_file() or not sidecar.is_file() or sidecar.read_text(encoding="utf-8").split()[0].lower() != sha256(source):
         raise SystemExit("E45 R3 system archive or sidecar is missing or invalid.")
@@ -67,6 +70,7 @@ def build_system() -> str:
             raise SystemExit(f"Missing private system source: {source_path}")
         members[relative] = source_path.read_bytes()
     manifest = {name: {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()} for name, data in sorted(members.items())}
+    SYSTEM.parent.mkdir(parents=True, exist_ok=True)
     temporary = SYSTEM.with_suffix(".tmp")
     with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name in sorted(members):

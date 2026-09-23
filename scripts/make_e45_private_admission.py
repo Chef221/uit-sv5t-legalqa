@@ -16,9 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PRIVATE_ROOT = Path(__file__).resolve().parents[1]
-E45_ROOT = PRIVATE_ROOT.parent / "implementation_r3"
+E45_ROOT = PRIVATE_ROOT
 sys.path.insert(0, str(PRIVATE_ROOT / "src"))
-sys.path.insert(0, str(E45_ROOT / "src"))
 
 from e45_private_shards import (  # noqa: E402
     ADMISSION_SCHEMA,

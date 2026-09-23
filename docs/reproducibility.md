@@ -2,6 +2,8 @@
 
 This is a **source-only** release. Authorized users must obtain the organizer's task data and scoring program through official channels. Download the pinned base and embedding models at the immutable revisions in `configs/e45-inference-aligned-parent-lora-v1.json`; obtain or rebuild E00/E02 artifacts under the hashes in `artifact-hashes.md`. Never place inputs under Git tracking.
 
+The checked-in notebooks are the historical launch notebooks and require their checksum-pinned system archives as external inputs. `scripts/build_e45_private_shards.py` accepts the external R3 archive path through `E45_R3_SYSTEM_BIN` and writes generated artifacts outside Git tracking. This public source tree has only portability edits to local path defaults and imports; it is **not byte-identical** to the archived Kaggle system binaries. Use the archived hashes when identifying the original run.
+
 The submitted path used:
 
 1. `scripts/run_e45_static_prepare.py` to check the frozen config and materialize the 5,636 answer-supervised training rows.
